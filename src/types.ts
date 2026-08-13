@@ -97,6 +97,40 @@ export interface ModelIdentity {
   status: string;
 }
 
+export interface GenerationProfile {
+  label: string;
+  description: string;
+  steps: number;
+  cfg_scale: number;
+  width: number;
+  height: number;
+  num_frames: number;
+  fps: number;
+  scheduler?: string;
+  quantization?: string;
+}
+
+export interface ModelSchedulerConfig {
+  default: string;
+  class_name: string;
+  params: Record<string, any>;
+}
+
+export interface ModelQuantizationConfig {
+  default: string;
+  supported: string[];
+}
+
+export interface ModelValidationConfig {
+  min_frames: number;
+  min_width: number;
+  min_height: number;
+  check_nan: boolean;
+  check_black_frames: boolean;
+  min_std_dev: number;
+  max_std_dev: number;
+}
+
 export interface VMRModelEntry {
   identity: ModelIdentity;
   capabilities: ModelCapabilities;
@@ -108,6 +142,10 @@ export interface VMRModelEntry {
   ui: ModelUI;
   documentation: Record<string, string | null>;
   verification: ModelVerification;
+  profiles?: Record<string, GenerationProfile>;
+  scheduler?: ModelSchedulerConfig;
+  quantization?: ModelQuantizationConfig;
+  validation?: ModelValidationConfig;
 }
 
 export interface VMRRegistry {
@@ -122,9 +160,11 @@ export interface VMRRegistry {
 
 export interface GPUInfo {
   name: string;
+  vram: number;
   vram_mb: number;
   vram_gb: number;
   driver: string;
+  cuda_version: string;
   temperature: number;
   detected: boolean;
 }
@@ -180,6 +220,9 @@ export interface ModelInfo {
   // From VMR generation (for UI sliders)
   generation_defaults: Record<string, number>;
   generation_limits: Record<string, ModelSettingSpec>;
+  profiles?: Record<string, GenerationProfile>;
+  scheduler?: ModelSchedulerConfig;
+  quantization?: ModelQuantizationConfig;
 
   // From local download state
   downloaded: boolean;
@@ -193,12 +236,16 @@ export interface ModelInfo {
 }
 
 export interface GenerationParams {
-  steps: number;
-  cfg_scale: number;
-  width: number;
-  height: number;
-  num_frames: number;
-  fps: number;
+  steps?: number;
+  cfg_scale?: number;
+  width?: number;
+  height?: number;
+  num_frames?: number;
+  fps?: number;
+  profile?: 'fast' | 'balanced' | 'detailed';
+  seed?: number;
+  scheduler?: string;
+  quantization?: string;
 }
 
 export type GenerationStatus =
@@ -206,6 +253,7 @@ export type GenerationStatus =
   | "queued"
   | "loading_model"
   | "generating"
+  | "post_processing"
   | "done"
   | "error";
 

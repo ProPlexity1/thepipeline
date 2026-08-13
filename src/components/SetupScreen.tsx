@@ -4,13 +4,17 @@ import {
   Cpu, Monitor, CheckCircle2, AlertTriangle, Loader2,
   Zap, HardDrive, ArrowRight, Sparkles, Shield
 } from 'lucide-react';
-import type { GPUInfo, ModelTier } from '../types';
+import type { GPUInfo, ModelInfo, ModelTier, SidecarStatus } from '../types';
 import { cn } from '../utils/cn';
 
 interface SetupScreenProps {
   step: number;
   gpu: GPUInfo | null;
+  sidecar: SidecarStatus;
+  sidecarError: string | null;
+  models: ModelInfo[];
   onDetectGPU: () => void;
+  onStartBackend: () => void;
   onComplete: () => void;
 }
 
@@ -28,38 +32,33 @@ const VRAM_TABLE = [
   { tier: 'Ultra', vram: '16 GB+', resolution: '1280×720', fps: 30, duration: '5-10s', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
 ];
 
-export default function SetupScreen({ step, gpu, onDetectGPU, onComplete }: SetupScreenProps) {
-  const [sidecarChecks, setSidecarChecks] = useState({
-    python: false,
-    fastapi: false,
-    comfyui: false,
-    connection: false,
-  });
+export default function SetupScreen({
+  step,
+  gpu,
+  sidecar,
+  sidecarError,
+  models,
+  onDetectGPU,
+  onStartBackend,
+  onComplete,
+}: SetupScreenProps) {
+  const [started, setStarted] = useState(false);
 
   useEffect(() => {
-    if (step === 0) {
-      const timer = setTimeout(() => onDetectGPU(), 1500);
-      return () => clearTimeout(timer);
+    if (!started) {
+      setStarted(true);
+      onStartBackend();
+      onDetectGPU();
     }
-  }, [step, onDetectGPU]);
+  }, [started, onDetectGPU, onStartBackend]);
 
-  useEffect(() => {
-    if (step === 2 && gpu) {
-      // Simulate sidecar verification checks
-      const checks = ['python', 'fastapi', 'comfyui', 'connection'] as const;
-      checks.forEach((check, i) => {
-        setTimeout(() => {
-          setSidecarChecks(prev => ({ ...prev, [check]: true }));
-        }, 800 * (i + 1));
-      });
-    }
-  }, [step, gpu]);
-
-  const allChecked = Object.values(sidecarChecks).every(Boolean);
+  const gpuReady = Boolean(gpu?.detected);
+  const allChecked = gpuReady && sidecar.running && sidecar.comfyui_ready && models.length > 0;
   const recommended = gpu ? getRecommendedTier(gpu.vram) : null;
+  const cudaVersion = gpu?.cuda_version || 'Checking';
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-bg-primary">
+    <div className="flex h-screen w-full items-center justify-center overflow-y-auto bg-bg-primary px-4 py-6">
       {/* Animated background */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -left-1/4 -top-1/4 h-1/2 w-1/2 rounded-full bg-accent-purple/5 blur-[120px]" />
@@ -91,7 +90,7 @@ export default function SetupScreen({ step, gpu, onDetectGPU, onComplete }: Setu
             </div>
             <div className="flex items-center gap-2 text-text-muted">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">Initializing...</span>
+              <span className="text-sm">Starting backend and reading hardware...</span>
             </div>
           </motion.div>
         )}
@@ -128,7 +127,7 @@ export default function SetupScreen({ step, gpu, onDetectGPU, onComplete }: Setu
         )}
 
         {/* Step 2: GPU Detected - Results */}
-        {step === 2 && gpu && (
+        {step === 2 && gpu?.detected && (
           <motion.div
             key="detected"
             initial={{ opacity: 0, y: 20 }}
@@ -157,7 +156,7 @@ export default function SetupScreen({ step, gpu, onDetectGPU, onComplete }: Setu
                   <InfoCard icon={<Monitor className="h-4 w-4" />} label="GPU" value={gpu.name} />
                   <InfoCard icon={<HardDrive className="h-4 w-4" />} label="VRAM" value={`${gpu.vram} GB`} />
                   <InfoCard icon={<Shield className="h-4 w-4" />} label="Driver" value={gpu.driver} />
-                  <InfoCard icon={<Zap className="h-4 w-4" />} label="CUDA" value={`v${gpu.cudaVersion}`} />
+                  <InfoCard icon={<Zap className="h-4 w-4" />} label="CUDA" value={cudaVersion === 'Checking' ? cudaVersion : `v${cudaVersion}`} />
                 </div>
 
                 {/* Recommended Tier */}
@@ -216,11 +215,16 @@ export default function SetupScreen({ step, gpu, onDetectGPU, onComplete }: Setu
                 <div>
                   <h3 className="text-sm font-medium text-text-muted mb-3 uppercase tracking-wider">Backend Status</h3>
                   <div className="grid grid-cols-2 gap-2">
-                    <CheckItem label="Python 3.11" checked={sidecarChecks.python} />
-                    <CheckItem label="FastAPI Server" checked={sidecarChecks.fastapi} />
-                    <CheckItem label="ComfyUI Engine" checked={sidecarChecks.comfyui} />
-                    <CheckItem label="IPC Connection" checked={sidecarChecks.connection} />
+                    <CheckItem label={sidecar.python_version ? `Python ${sidecar.python_version.split(' ')[0]}` : 'Python'} checked={Boolean(sidecar.python_version)} />
+                    <CheckItem label="FastAPI Server" checked={sidecar.running} />
+                    <CheckItem label="Model Registry" checked={models.length > 0} />
+                    <CheckItem label="Backend Ready" checked={sidecar.comfyui_ready} />
                   </div>
+                  {sidecarError && (
+                    <p className="mt-3 rounded-lg border border-accent-amber/30 bg-accent-amber/10 px-3 py-2 text-xs text-accent-amber">
+                      {sidecarError}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -247,7 +251,7 @@ export default function SetupScreen({ step, gpu, onDetectGPU, onComplete }: Setu
         )}
 
         {/* No GPU detected fallback */}
-        {step === 2 && !gpu && (
+        {step === 2 && (!gpu || !gpu.detected) && (
           <motion.div
             key="no-gpu"
             initial={{ opacity: 0, y: 20 }}

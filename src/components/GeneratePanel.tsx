@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wand2, ChevronDown, Clock, Loader2, CheckCircle2,
   AlertCircle, Play, ImageIcon, Trash2, Copy, Download,
-  Maximize2, X, Film
+  Maximize2, X, Film, Zap, Scale, Sparkles, Sliders, Settings2
 } from 'lucide-react';
-import type { GenerationJob, ModelInfo, GenerationStatus } from '../types';
+import type { GenerationJob, ModelInfo, GenerationStatus, GenerationProfile } from '../types';
 import { cn } from '../utils/cn';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
@@ -19,7 +19,7 @@ interface GeneratePanelProps {
   onPromptChange: (p: string) => void;
   onNegativePromptChange: (p: string) => void;
   onSelectModel: (m: string) => void;
-  onGenerate: (prompt: string, negPrompt: string, model: string, settings: Record<string, number>) => void;
+  onGenerate: (prompt: string, negPrompt: string, model: string, settings: Record<string, any>) => void;
 }
 
 const STATUS_CONFIG: Record<GenerationStatus, { label: string; color: string; icon: React.ReactNode }> = {
@@ -27,18 +27,24 @@ const STATUS_CONFIG: Record<GenerationStatus, { label: string; color: string; ic
   queued: { label: 'Queued', color: 'text-accent-amber', icon: <Clock className="h-3.5 w-3.5" /> },
   loading_model: { label: 'Loading Model', color: 'text-accent-cyan', icon: <Loader2 className="h-3.5 w-3.5 animate-spin" /> },
   generating: { label: 'Generating', color: 'text-accent-purple', icon: <Loader2 className="h-3.5 w-3.5 animate-spin" /> },
+  post_processing: { label: 'Post-Processing', color: 'text-accent-blue', icon: <Loader2 className="h-3.5 w-3.5 animate-spin" /> },
   done: { label: 'Complete', color: 'text-accent-green', icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
   error: { label: 'Error', color: 'text-accent-red', icon: <AlertCircle className="h-3.5 w-3.5" /> },
 };
 
 const PROMPT_SUGGESTIONS = [
   'A majestic dragon flying over snow-capped mountains at dawn',
-  'Timelapse of a flower blooming in a sunlit meadow',
+  'A realistic macro timelapse of a closed flower bud in a sunlit meadow. The flower actively blooms throughout the entire shot: the petals slowly unfold one by one, the stem gently sways in a light breeze, nearby leaves move naturally, and tiny insects fly through the foreground. The camera performs a very subtle forward push-in while maintaining focus on the flower. Continuous visible motion from beginning to end, realistic organic movement, natural physics, cinematic photography, detailed textures, photorealistic.',
   'Underwater scene with colorful coral reef and tropical fish',
-  'A steampunk train racing through a desert landscape',
-  'Northern lights dancing over a frozen lake in Iceland',
-  'A cat sitting on a windowsill watching rain outside',
 ];
+
+type ProfileKey = 'fast' | 'balanced' | 'detailed';
+
+const PRESET_ICONS: Record<ProfileKey, React.ReactNode> = {
+  fast: <Zap className="h-4 w-4 text-amber-400" />,
+  balanced: <Scale className="h-4 w-4 text-cyan-400" />,
+  detailed: <Sparkles className="h-4 w-4 text-purple-400" />,
+};
 
 export default function GeneratePanel({
   prompt,
@@ -55,22 +61,47 @@ export default function GeneratePanel({
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [selectedGalleryItem, setSelectedGalleryItem] = useState<GenerationJob | null>(null);
   const [durations, setDurations] = useState<Record<string, number>>({});
-  const [values, setValues] = useState<Record<string, number>>({});
+
+  // Engine v2 State
+  const [selectedProfile, setSelectedProfile] = useState<ProfileKey>('balanced');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Advanced mode overrides state
+  const [steps, setSteps] = useState<number>(20);
+  const [cfgScale, setCfgScale] = useState<number>(4.0);
+  const [width, setWidth] = useState<number>(640);
+  const [height, setHeight] = useState<number>(352);
+  const [numFrames, setNumFrames] = useState<number>(49);
+  const [fps, setFps] = useState<number>(16);
+  const [seed, setSeed] = useState<string>('');
+  const [selectedScheduler, setSelectedScheduler] = useState<string>('Default');
+  const [selectedQuantization, setSelectedQuantization] = useState<string>('auto');
 
   const activeModel = models.find(m => m.id === selectedModel);
   const activeJobs = jobs.filter(j => j.status !== 'done' && j.status !== 'error' && j.status !== 'idle');
   const canGenerate = prompt.trim().length > 0 && activeModel?.downloaded;
 
-  // Reset sliders to this model's own defaults whenever the selected model changes
+  // Sync profile defaults whenever active model or selected profile changes
   useEffect(() => {
-    if (activeModel?.generation_limits) {
-      const defaults: Record<string, number> = {};
-      for (const [key, spec] of Object.entries(activeModel.generation_limits)) {
-        defaults[key] = spec.default;
-      }
-      setValues(defaults);
+    if (activeModel?.profiles && activeModel.profiles[selectedProfile]) {
+      const prof = activeModel.profiles[selectedProfile];
+      setSteps(prof.steps);
+      setCfgScale(prof.cfg_scale);
+      setWidth(prof.width);
+      setHeight(prof.height);
+      setNumFrames(prof.num_frames);
+      setFps(prof.fps);
+      if (prof.scheduler) setSelectedScheduler(prof.scheduler);
+      if (prof.quantization) setSelectedQuantization(prof.quantization);
+    } else if (activeModel?.generation_defaults) {
+      setSteps(activeModel.generation_defaults.steps || 20);
+      setCfgScale(activeModel.generation_defaults.cfg_scale || 4.0);
+      setWidth(activeModel.generation_defaults.width || 640);
+      setHeight(activeModel.generation_defaults.height || 352);
+      setNumFrames(activeModel.generation_defaults.num_frames || 49);
+      setFps(activeModel.generation_defaults.fps || 16);
     }
-  }, [selectedModel, activeModel]);
+  }, [selectedModel, selectedProfile, activeModel]);
 
   const handleLoadedMetadata = (jobId: string, e: React.SyntheticEvent<HTMLVideoElement>) => {
     const dur = e.currentTarget.duration;
@@ -81,8 +112,21 @@ export default function GeneratePanel({
 
   const handleGenerate = () => {
     if (canGenerate) {
-      const submittedPrompt = prompt;
-      onGenerate(submittedPrompt, negativePrompt, selectedModel, values);
+      const payload: Record<string, any> = {
+        profile: selectedProfile,
+        steps,
+        cfg_scale: cfgScale,
+        width,
+        height,
+        num_frames: numFrames,
+        fps,
+      };
+
+      if (seed.trim() !== '') payload.seed = parseInt(seed, 10);
+      if (selectedScheduler !== 'Default') payload.scheduler = selectedScheduler;
+      if (selectedQuantization !== 'auto') payload.quantization = selectedQuantization;
+
+      onGenerate(prompt, negativePrompt, selectedModel, payload);
       onPromptChange('');
     }
   };
@@ -92,6 +136,7 @@ export default function GeneratePanel({
       {/* Left: Prompt & Controls */}
       <div className="flex w-[420px] flex-col border-r border-border-dim flex-shrink-0">
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Prompt input */}
           <div>
             <label className="mb-1.5 block text-xs font-medium text-text-muted uppercase tracking-wider">
               Prompt
@@ -99,7 +144,7 @@ export default function GeneratePanel({
             <textarea
               value={prompt}
               onChange={(e) => onPromptChange(e.target.value)}
-              placeholder="Describe the video you want to generate..."
+              placeholder="Describe the video scene in detail..."
               rows={4}
               className="w-full rounded-xl bg-bg-tertiary border border-border-dim px-4 py-3 text-sm text-text-primary placeholder-text-muted focus:border-accent-purple focus:outline-none focus:ring-1 focus:ring-accent-purple/50 resize-none transition-colors"
             />
@@ -176,33 +221,191 @@ export default function GeneratePanel({
             </div>
           </div>
 
-          {/* Advanced Options — driven entirely by this model's settings schema */}
-          {activeModel?.generation_limits && (
-            <div>
-              <label className="mb-2 block text-xs font-medium text-text-muted uppercase tracking-wider">
-                Advanced Options
-              </label>
-              <div className="space-y-3">
-                {Object.entries(activeModel.generation_limits).map(([key, spec]) => (
-                  <div key={key}>
-                    <label className="mb-1 flex justify-between text-xs text-text-muted">
-                      <span className="capitalize">{key.replace(/_/g, ' ')}</span>
-                      <span className="text-text-secondary">{values[key] ?? spec.default}</span>
-                    </label>
+          {/* Engine v2 Quality Presets */}
+          <div>
+            <label className="mb-2 block text-xs font-medium text-text-muted uppercase tracking-wider">
+              Quality Preset
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {(['fast', 'balanced', 'detailed'] as ProfileKey[]).map((key) => {
+                const isSelected = selectedProfile === key;
+                const prof = activeModel?.profiles?.[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSelectedProfile(key)}
+                    className={cn(
+                      'flex flex-col items-center justify-center p-3 rounded-xl border transition-all text-center',
+                      isSelected
+                        ? 'bg-accent-purple/10 border-accent-purple text-text-primary shadow-sm shadow-accent-purple/20'
+                        : 'bg-bg-tertiary/60 border-border-dim text-text-muted hover:border-border-active hover:text-text-secondary'
+                    )}
+                  >
+                    <div className="mb-1">{PRESET_ICONS[key]}</div>
+                    <span className="text-xs font-semibold capitalize">{key}</span>
+                    <span className="text-[10px] text-text-muted mt-0.5">
+                      {prof ? `${prof.steps}st · ${prof.width}x${prof.height}` : key}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Collapsible Advanced Mode */}
+          <div className="rounded-xl border border-border-dim bg-bg-tertiary/40 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex w-full items-center justify-between px-4 py-3 text-xs font-medium text-text-secondary hover:bg-bg-hover transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Sliders className="h-3.5 w-3.5 text-accent-purple" />
+                <span>Advanced Mode Parameters</span>
+              </div>
+              <ChevronDown className={cn('h-4 w-4 text-text-muted transition-transform', showAdvanced && 'rotate-180')} />
+            </button>
+
+            <AnimatePresence>
+              {showAdvanced && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="px-4 pb-4 pt-1 space-y-3 border-t border-border-dim/50"
+                >
+                  {/* Steps */}
+                  <div>
+                    <div className="flex justify-between text-xs text-text-muted mb-1">
+                      <span>Inference Steps</span>
+                      <span className="text-text-secondary font-mono">{steps}</span>
+                    </div>
                     <input
                       type="range"
-                      min={spec.min}
-                      max={spec.max}
-                      step={spec.step}
-                      value={values[key] ?? spec.default}
-                      onChange={(e) => setValues(v => ({ ...v, [key]: Number(e.target.value) }))}
+                      min={10}
+                      max={100}
+                      step={5}
+                      value={steps}
+                      onChange={(e) => setSteps(Number(e.target.value))}
                       className="w-full accent-accent-purple"
                     />
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+
+                  {/* CFG Scale */}
+                  <div>
+                    <div className="flex justify-between text-xs text-text-muted mb-1">
+                      <span>CFG Guidance Scale</span>
+                      <span className="text-text-secondary font-mono">{cfgScale.toFixed(1)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={1.0}
+                      max={10.0}
+                      step={0.5}
+                      value={cfgScale}
+                      onChange={(e) => setCfgScale(Number(e.target.value))}
+                      className="w-full accent-accent-purple"
+                    />
+                  </div>
+
+                  {/* Resolution */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-text-muted block mb-1">Width</label>
+                      <input
+                        type="number"
+                        step={16}
+                        value={width}
+                        onChange={(e) => setWidth(Number(e.target.value))}
+                        className="w-full rounded-lg bg-bg-secondary border border-border-dim px-3 py-1.5 text-xs text-text-primary focus:border-accent-purple focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-text-muted block mb-1">Height</label>
+                      <input
+                        type="number"
+                        step={16}
+                        value={height}
+                        onChange={(e) => setHeight(Number(e.target.value))}
+                        className="w-full rounded-lg bg-bg-secondary border border-border-dim px-3 py-1.5 text-xs text-text-primary focus:border-accent-purple focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Frames & FPS */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-text-muted block mb-1">Num Frames</label>
+                      <input
+                        type="number"
+                        step={8}
+                        value={numFrames}
+                        onChange={(e) => setNumFrames(Number(e.target.value))}
+                        className="w-full rounded-lg bg-bg-secondary border border-border-dim px-3 py-1.5 text-xs text-text-primary focus:border-accent-purple focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-text-muted block mb-1">FPS</label>
+                      <input
+                        type="number"
+                        min={8}
+                        max={60}
+                        value={fps}
+                        onChange={(e) => setFps(Number(e.target.value))}
+                        className="w-full rounded-lg bg-bg-secondary border border-border-dim px-3 py-1.5 text-xs text-text-primary focus:border-accent-purple focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Seed */}
+                  <div>
+                    <label className="text-[11px] text-text-muted block mb-1">Seed (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Random (-1 or blank)"
+                      value={seed}
+                      onChange={(e) => setSeed(e.target.value)}
+                      className="w-full rounded-lg bg-bg-secondary border border-border-dim px-3 py-1.5 text-xs text-text-primary focus:border-accent-purple focus:outline-none placeholder:text-text-muted/50"
+                    />
+                  </div>
+
+                  {/* Scheduler & Quantization Selectors */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-text-muted block mb-1">Scheduler</label>
+                      <select
+                        value={selectedScheduler}
+                        onChange={(e) => setSelectedScheduler(e.target.value)}
+                        className="w-full rounded-lg bg-bg-secondary border border-border-dim px-2 py-1.5 text-xs text-text-primary focus:border-accent-purple focus:outline-none"
+                      >
+                        <option value="Default">Default</option>
+                        <option value="FlowMatch">FlowMatch</option>
+                        <option value="DDIM">DDIM</option>
+                        <option value="Euler">Euler</option>
+                        <option value="DPMSolver">DPMSolver</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-text-muted block mb-1">Quantization</label>
+                      <select
+                        value={selectedQuantization}
+                        onChange={(e) => setSelectedQuantization(e.target.value)}
+                        className="w-full rounded-lg bg-bg-secondary border border-border-dim px-2 py-1.5 text-xs text-text-primary focus:border-accent-purple focus:outline-none"
+                      >
+                        <option value="auto">Auto</option>
+                        <option value="fp16">FP16</option>
+                        <option value="bf16">BF16</option>
+                        <option value="fp8">FP8</option>
+                        <option value="quanto_int8">Quanto INT8</option>
+                        <option value="none">None (FP32)</option>
+                      </select>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Active Jobs */}
           {activeJobs.length > 0 && (

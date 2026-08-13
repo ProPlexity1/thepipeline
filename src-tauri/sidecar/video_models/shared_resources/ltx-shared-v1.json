@@ -1,0 +1,23 @@
+{
+    "description": "LTX 0.9.1-era text encoder, tokenizer, VAE, and scheduler shared by the 0.9.1 single-file checkpoint. Do not use for 0.9.5+ checkpoints because their VAE/scheduler bundle changed.",
+    "provider": "huggingface",
+    "repo": "Lightricks/LTX-Video",
+    "revision": "main",
+    "local_dir": "ltx-video-shared",
+    "files": [
+    "model_index.json",
+    "scheduler/scheduler_config.json",
+    "text_encoder/config.json",
+    "text_encoder/model-00001-of-00004.safetensors",
+    "text_encoder/model-00002-of-00004.safetensors",
+    "text_encoder/model-00003-of-00004.safetensors",
+    "text_encoder/model-00004-of-00004.safetensors",
+    "text_encoder/model.safetensors.index.json",
+    "tokenizer/added_tokens.json",
+    "tokenizer/special_tokens_map.json",
+    "tokenizer/spiece.model",
+    "tokenizer/tokenizer_config.json",
+    "vae/config.json",
+    "vae/diffusion_pytorch_model.safetensors"
+    ]
+}

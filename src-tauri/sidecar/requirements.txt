@@ -3,9 +3,9 @@ uvicorn
 websockets
 requests
 huggingface_hub
-diffusers
-transformers
-accelerate
+diffusers>=0.34.0
+transformers>=4.45.0
+accelerate>=0.33.0
 sentencepiece
 protobuf
 imageio

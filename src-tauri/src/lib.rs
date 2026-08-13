@@ -2,6 +2,9 @@ use std::process::Command;
 use std::sync::Mutex;
 use tauri::{Manager, State}; // Added Manager trait here
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 pub struct SidecarProcess(pub Mutex<Option<std::process::Child>>);
 
 #[derive(serde::Serialize)]
@@ -79,15 +82,37 @@ fn start_sidecar(
 ) -> SidecarStatus {
     let mut child_lock = state.0.lock().unwrap();
 
-    // Already running
-    if child_lock.is_some() {
-        return SidecarStatus {
-            running: true,
-            port: 8188,
-            pid: child_lock.as_ref().map(|c| c.id()),
-            message: "Sidecar already running".to_string(),
-        };
+    // Check if the existing child is actually still alive
+    if let Some(ref mut child) = *child_lock {
+        match child.try_wait() {
+            Ok(Some(_exit_status)) => {
+                // Child has exited — clear the stale handle
+                println!("[NeuralCut] Previous sidecar process has exited, clearing handle");
+                *child_lock = None;
+            }
+            Ok(None) => {
+                // Still running
+                return SidecarStatus {
+                    running: true,
+                    port: 8188,
+                    pid: Some(child.id()),
+                    message: "Sidecar already running".to_string(),
+                };
+            }
+            Err(_) => {
+                // Error checking — assume dead, clear handle
+                *child_lock = None;
+            }
+        }
     }
+
+    // Kill any orphaned process holding port 8188 from a previous app run
+    let _ = Command::new("cmd")
+        .args(["/C", "for /f \"tokens=5\" %a in ('netstat -ano -p TCP ^| findstr \"127.0.0.1:8188\" ^| findstr \"LISTENING\"') do taskkill /F /PID %a"])
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+        .output();
+    // Brief pause to let the OS release the socket
+    std::thread::sleep(std::time::Duration::from_millis(300));
 
     let resource_path = app_handle
         .path()
@@ -130,11 +155,16 @@ fn start_sidecar(
     match (python_path, script_path) {
         (Some(python), Some(script)) => {
             println!("[NeuralCut] Spawning: {:?} {:?}", python, script);
-            match Command::new(&python)
-                .arg(&script)
+            let mut cmd = Command::new(&python);
+            cmd.arg(&script)
                 .env("SIDECAR_PORT", "8188")
-                .env("HF_TOKEN", std::env::var("HF_TOKEN").unwrap_or_else(|_| "".into()))
-                .spawn()
+                .env("HF_TOKEN", std::env::var("HF_TOKEN").unwrap_or_else(|_| "".into()));
+
+            if let Ok(models_dir) = std::env::var("MODELS_DIR") {
+                cmd.env("MODELS_DIR", models_dir);
+            }
+
+            match cmd.spawn()
             {
                 Ok(child) => {
                     let pid = child.id();

@@ -1,0 +1,49 @@
+{
+  "vmr_metadata": {
+    "schema_version": "2.0.0",
+    "registry_version": "1.0.0",
+    "minimum_app_version": "1.0.0",
+    "last_updated": "2026-08-03"
+  },
+  "families": {
+    "wan": {
+      "developer": "Wan-AI (by Tsinghua & Hugging Face)",
+      "license": "Apache 2.0",
+      "official_links": {
+        "huggingface_repo": "https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
+        "diffusers_docs": "https://huggingface.co/docs/diffusers/api/pipelines/wan",
+        "github": "https://github.com/Wan-Video/Wan2.1",
+        "paper": "https://arxiv.org/abs/2501.08511"
+      }
+    },
+    "cogvideox": {
+      "developer": "THUDM (Zhipu AI / Tsinghua)",
+      "license": "See repository \u2014 custom CogVideoX license, verify terms before redistribution",
+      "official_links": {
+        "huggingface_collection": "https://huggingface.co/THUDM",
+        "diffusers_docs": "https://huggingface.co/docs/diffusers/en/api/pipelines/cogvideox"
+      }
+    },
+    "ltx-video": {
+      "developer": "Lightricks",
+      "license": "See repository",
+      "official_links": {
+        "huggingface_repo": "https://huggingface.co/Lightricks/LTX-Video"
+      }
+    },
+    "mochi": {
+      "developer": "Genmo",
+      "license": "See repository",
+      "official_links": {
+        "huggingface_repo": "https://huggingface.co/genmo/mochi-1-preview"
+      }
+    },
+    "hunyuanvideo": {
+      "developer": "Tencent",
+      "license": "See repository",
+      "official_links": {
+        "huggingface_repo": "https://huggingface.co/hunyuanvideo-community/HunyuanVideo"
+      }
+    }
+  }
+}

@@ -12,7 +12,7 @@ import LicensePanel from './components/LicensePanel';
 export default function App() {
   const store = useAppStore();
 
-  // Auto-start sidecar when entering main view
+  // Keep this as a fallback if the user reaches the main app before setup finishes.
   useEffect(() => {
     if (store.view === 'main' && !store.sidecarStatus.running) {
       store.startSidecar();
@@ -29,7 +29,11 @@ export default function App() {
         <SetupScreen
           step={store.setupStep}
           gpu={store.gpu}
+          sidecar={store.sidecarStatus}
+          sidecarError={store.sidecarError}
+          models={store.models}
           onDetectGPU={store.detectGPU}
+          onStartBackend={store.startSidecar}
           onComplete={() => store.setView('main')}
         />
       </div>

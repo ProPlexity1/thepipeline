@@ -2,15 +2,17 @@ import torch
 from diffusers import LTXPipeline, LTXVideoTransformer3DModel
 from diffusers.utils import export_to_video
 
+from model_registry import MODELS_DIR
+
 print("Loading transformer from local file...", flush=True)
 transformer = LTXVideoTransformer3DModel.from_single_file(
-    r"C:\Users\ZESTRO\AppData\Local\NeuralCut\models\ltx-video-ultra\ltxv-13b-0.9.8-distilled-fp8.safetensors",
+    str(MODELS_DIR / "ltx-video-ultra" / "ltxv-13b-0.9.8-distilled-fp8.safetensors"),
     torch_dtype=torch.float8_e4m3fn,
 )
 
 print("Loading pipeline from local components...", flush=True)
 pipe = LTXPipeline.from_pretrained(
-    r"C:\Users\ZESTRO\AppData\Local\NeuralCut\pipeline-0.9.8-distilled",
+    str(MODELS_DIR.parent / "pipeline-0.9.8-distilled"),
     transformer=transformer,
     torch_dtype=torch.bfloat16,
     local_files_only=True,  # ← forces no downloads

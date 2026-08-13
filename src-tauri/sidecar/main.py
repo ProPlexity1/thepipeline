@@ -12,14 +12,16 @@ import json
 import threading
 import queue
 from pathlib import Path
+from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from model_registry import (
     MODEL_CONFIG, SHARED_RESOURCES, VMR_METADATA,
-    get_model, clamp_settings, resolve_offload_strategy, 
-    get_download_manifest, check_downloaded
+    MODELS_DIR, OUTPUT_DIR,
+    get_model, clamp_settings, resolve_generation_params, resolve_offload_strategy, 
+    get_download_manifest, check_downloaded, validate_runtime_assets
 )
 import uvicorn
 import requests
@@ -47,12 +49,6 @@ import tempfile
 
 SIDECAR_BUILD = "ltx-shared-095-queue-2026-07-29"
 SIDECAR_SCRIPT = str(Path(__file__).resolve())
-
-MODELS_DIR = Path(os.environ.get("MODELS_DIR", Path.home() / "AppData/Local/NeuralCut/models"))
-MODELS_DIR.mkdir(parents=True, exist_ok=True)
-
-OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", Path.home() / "Videos/NeuralCut"))
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Global State ──────────────────────────────────────────────────────────────
 
@@ -82,12 +78,16 @@ class GenerateRequest(BaseModel):
     prompt: str
     negative_prompt: str = ""
     model_id: str = "ltx-video-standard"
-    steps: int = 30
-    cfg_scale: float = 4.0
-    width: int = 704
-    height: int = 480
-    num_frames: int = 81
-    fps: int = 24
+    profile: str = "balanced"
+    steps: Optional[int] = None
+    cfg_scale: Optional[float] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    num_frames: Optional[int] = None
+    fps: Optional[int] = None
+    seed: Optional[int] = None
+    scheduler: Optional[str] = None
+    quantization: Optional[str] = None
 
 class GenerateResponse(BaseModel):
     job_id: str
@@ -183,7 +183,11 @@ def real_model_download(model_id: str, loop=None):
             else:
                 queue.append(entry)
                 # Fetch remote size with allow_redirects=True
-                url = hf_hub_url(entry["repo_id"], entry["filename"])
+                url = hf_hub_url(
+                    entry["repo_id"],
+                    entry["filename"],
+                    revision=entry.get("revision", "main"),
+                )
                 try:
                     r = requests.head(url, allow_redirects=True, timeout=10)
                     size = int(r.headers.get("content-length", 0))
@@ -240,7 +244,7 @@ def real_model_download(model_id: str, loop=None):
             temp_path = Path(str(local_path) + ".tmp")
             file_initial_size = temp_path.stat().st_size if temp_path.exists() else 0
 
-            url = hf_hub_url(repo_id, filename)
+            url = hf_hub_url(repo_id, filename, revision=entry.get("revision", "main"))
             hf_token = os.environ.get("HF_TOKEN", "")
             headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
             if file_initial_size > 0:
@@ -327,6 +331,10 @@ def real_model_download(model_id: str, loop=None):
                 })
                 return
 
+        validated, validation_msg = validate_runtime_assets(model_id, MODELS_DIR)
+        if not validated:
+            raise RuntimeError(validation_msg)
+
         # Complete!
         models_db[model_id]["downloading"] = False
         models_db[model_id]["downloaded"] = True
@@ -349,6 +357,17 @@ def real_model_download(model_id: str, loop=None):
         print(f"[NeuralCut] Download failed: {e}", flush=True)
         models_db[model_id]["downloading"] = False
         models_db[model_id]["progress"] = 0.0
+        models_db[model_id]["downloaded"] = False
+        broadcast_from_thread({
+            "type": "download_progress",
+            "model_id": model_id,
+            "progress": 0.0,
+            "speed_mbps": 0.0,
+            "eta_seconds": 0,
+            "downloading": False,
+            "downloaded": False,
+            "error": str(e),
+        })
 
 # ── Generation ──────────────────────────────
 active_processes: dict[str, subprocess.Popen] = {}
@@ -377,12 +396,16 @@ def run_generation_subprocess(job_id: str, req: GenerateRequest):
         "model_id": req.model_id,
         "prompt": req.prompt,
         "negative_prompt": req.negative_prompt,
+        "profile": req.profile or "balanced",
         "steps": req.steps,
         "cfg_scale": req.cfg_scale,
         "width": req.width,
         "height": req.height,
         "num_frames": req.num_frames,
         "fps": req.fps,
+        "seed": req.seed,
+        "scheduler": req.scheduler,
+        "quantization": req.quantization,
     }
 
     params_file = Path(tempfile.gettempdir()) / f"neuralcut_job_{job_id}.json"
@@ -591,23 +614,20 @@ def generate(req: GenerateRequest):
     if not model.get("downloaded"):
         return GenerateResponse(job_id="", status="error", message=f"Model {req.model_id} is not downloaded yet")
 
-    # Clamp all generation settings to the model's actual allowed range
-    clamped = clamp_settings(req.model_id, {
-        "steps": req.steps,
-        "cfg_scale": req.cfg_scale,
-        "width": req.width,
-        "height": req.height,
-        "num_frames": req.num_frames,
-        "fps": req.fps,
-    })
+    # Resolve and clamp generation parameters taking profile & overrides into account
+    req_dict = req.model_dump()
+    resolved = resolve_generation_params(req.model_id, req_dict)
 
-    # Update request with clamped values
-    req.steps = clamped["steps"]
-    req.cfg_scale = clamped["cfg_scale"]
-    req.width = clamped["width"]
-    req.height = clamped["height"]
-    req.num_frames = clamped["num_frames"]
-    req.fps = clamped["fps"]
+    # Update request with resolved values
+    req.steps = resolved.get("steps")
+    req.cfg_scale = resolved.get("cfg_scale")
+    req.width = resolved.get("width")
+    req.height = resolved.get("height")
+    req.num_frames = resolved.get("num_frames")
+    req.fps = resolved.get("fps")
+    req.seed = resolved.get("seed")
+    req.scheduler = resolved.get("scheduler")
+    req.quantization = resolved.get("quantization")
 
     job_id = str(uuid.uuid4())[:8]
     ensure_generation_queue_worker()
@@ -661,9 +681,65 @@ async def startup_event():
     print(f"[NeuralCut] Models dir: {MODELS_DIR}", flush=True)
     print(f"[NeuralCut] Output dir: {OUTPUT_DIR}", flush=True)
 
+# ── Port conflict resolution ──────────────────────────────────────────────────
+
+def kill_port_holder(port: int) -> bool:
+    """Kill any process currently holding the given port (Windows-specific)."""
+    try:
+        result = subprocess.run(
+            ["netstat", "-ano", "-p", "TCP"],
+            capture_output=True, text=True, timeout=5
+        )
+        for line in result.stdout.splitlines():
+            # Match lines like:  TCP    127.0.0.1:8188    ...    LISTENING    12345
+            if f"127.0.0.1:{port}" in line and "LISTENING" in line:
+                parts = line.split()
+                pid = int(parts[-1])
+                if pid == os.getpid():
+                    continue  # Don't kill ourselves
+                print(f"[NeuralCut] Killing old process on port {port} (PID {pid})", flush=True)
+                subprocess.run(["taskkill", "/F", "/PID", str(pid)],
+                               capture_output=True, timeout=5)
+                import time
+                time.sleep(0.5)  # Give OS time to release the socket
+                return True
+    except Exception as e:
+        print(f"[NeuralCut] Could not check/kill port holder: {e}", flush=True)
+    return False
+
+
+def is_port_free(port: int) -> bool:
+    """Check if a port is available for binding."""
+    import socket
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", port))
+            return True
+    except OSError:
+        return False
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    port = int(os.environ.get("SIDECAR_PORT", 8188))
-    print(f"[NeuralCut Sidecar] Starting on port {port}", flush=True)
-    uvicorn.run(app, host="127.0.0.1", port=port, log_level="info", access_log=False)
+    base_port = int(os.environ.get("SIDECAR_PORT", 8188))
+    fallback_ports = [base_port, base_port + 1, base_port + 2]
+
+    chosen_port = None
+    for port in fallback_ports:
+        if is_port_free(port):
+            chosen_port = port
+            break
+        # Port is occupied — try to kill the holder
+        print(f"[NeuralCut Sidecar] Port {port} is busy, attempting to free it...", flush=True)
+        kill_port_holder(port)
+        if is_port_free(port):
+            chosen_port = port
+            break
+
+    if chosen_port is None:
+        print(f"[NeuralCut Sidecar] FATAL: Could not bind to any port in {fallback_ports}", flush=True)
+        sys.exit(1)
+
+    print(f"[NeuralCut Sidecar] Starting on port {chosen_port}", flush=True)
+    uvicorn.run(app, host="127.0.0.1", port=chosen_port, log_level="info", access_log=False)

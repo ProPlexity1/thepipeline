@@ -23,7 +23,12 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$HOME/Videos/NeuralCut/**"]
+        "scope": [
+          "**",
+          "$HOME/Videos/NeuralCut/**",
+          "../outputs/**",
+          "**/outputs/**"
+        ]
       }
     }
   },

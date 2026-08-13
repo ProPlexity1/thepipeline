@@ -18,7 +18,14 @@ export default defineConfig({
   },
   server: {
     watch: {
-      ignored: ['**/src-tauri/**']
+      ignored: [
+        '**/src-tauri/**',
+        '**/models/**',
+        '**/outputs/**',
+        /[\\/](models|outputs|src-tauri|\.git)[\\/]/,
+        path.resolve(__dirname, 'models') + '/**',
+        path.resolve(__dirname, 'outputs') + '/**',
+      ],
     }
   }
 });

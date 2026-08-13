@@ -75,9 +75,12 @@ function transformVMRToModelInfo(id: string, vmr: VMRModelEntry): ModelInfo {
     // Capabilities
     capabilities: vmr.capabilities,
 
-    // Generation settings for sliders
+    // Generation settings for sliders & profiles
     generation_defaults: gen.defaults,
     generation_limits: gen.limits,
+    profiles: vmr.profiles,
+    scheduler: vmr.scheduler,
+    quantization: vmr.quantization,
 
     // Download state (populated later from /models endpoint)
     downloaded: false,
@@ -207,6 +210,7 @@ export function useAppStore() {
     version: '1.0.0',
     python_version: '',
   });
+  const [sidecarError, setSidecarError] = useState<string | null>(null);
   const [license, setLicense] = useState<LicenseInfo>({
     key: '',
     valid: false,
@@ -225,9 +229,11 @@ export function useAppStore() {
       console.error('GPU detection failed:', err);
       setGpu({
         name: 'No NVIDIA GPU detected',
+        vram: 0,
         vram_mb: 0,
         vram_gb: 0,
         driver: 'N/A',
+        cuda_version: 'N/A',
         temperature: 0,
         detected: false,
       });
@@ -275,8 +281,10 @@ export function useAppStore() {
         const firstDownloaded = merged.find((m) => m.downloaded);
         return firstDownloaded?.id || merged[0]?.id || '';
       });
+      return merged;
     } catch (err) {
       console.error('Failed to fetch VMR from sidecar:', err);
+      return [];
     }
   }, []);
 
@@ -288,6 +296,7 @@ export function useAppStore() {
   }, [sidecarStatus.running, sidecarStatus.comfyui_ready, fetchModels]);
 
   const startSidecar = useCallback(async () => {
+    setSidecarError(null);
     try {
       const status = await invoke<{
         running: boolean;
@@ -299,9 +308,11 @@ export function useAppStore() {
       console.log('Sidecar invoke result:', JSON.stringify(status));
 
       if (status.running) {
-        setTimeout(async () => {
+        const deadline = Date.now() + 15000;
+        const pollHealth = async () => {
           try {
             const res = await fetch('http://127.0.0.1:8188/health');
+            if (!res.ok) throw new Error(`Health check failed: ${res.status}`);
             const data = await res.json();
             console.log('Health check result:', JSON.stringify(data));
             setSidecarStatus({
@@ -311,16 +322,25 @@ export function useAppStore() {
               version: data.version,
               python_version: data.python_version,
             });
+            return;
           } catch (err) {
+            if (Date.now() < deadline) {
+              setTimeout(pollHealth, 500);
+              return;
+            }
             console.error('Health check failed:', err);
+            setSidecarError('Backend started, but did not become ready in time.');
             setSidecarStatus((prev) => ({ ...prev, running: false }));
           }
-        }, 4000);
+        };
+        pollHealth();
       } else {
         console.error('Sidecar reported not running:', status.message);
+        setSidecarError(status.message || 'Backend did not start.');
       }
     } catch (err) {
       console.error('start_sidecar invoke failed:', err);
+      setSidecarError(String(err));
     }
   }, []);
 
@@ -443,7 +463,7 @@ export function useAppStore() {
       prompt: string,
       negPrompt: string,
       modelId: string,
-      settings: Record<string, number>
+      settings: Record<string, any>
     ) => {
       try {
         const res = await fetch('http://127.0.0.1:8188/generate', {
@@ -526,12 +546,14 @@ export function useAppStore() {
     setSelectedModel,
     sidecarStatus,
     setSidecarStatus,
+    sidecarError,
     license,
     setLicense,
     galleryItems,
     setGalleryItems,
     detectGPU,
     startSidecar,
+    fetchModels,
     downloadModel,
     cancelDownload,
     deleteModel,
