@@ -1,0 +1,14 @@
+{
+  "description": "Official LTX-Video 0.9.5 diffusers configs (scheduler, VAE, transformer). The weights come from the single-file 0.9.5 checkpoint; these configs make diffusers build the matching 0.9.5 VAE and noise schedule.",
+  "provider": "huggingface",
+  "repo": "Lightricks/LTX-Video-0.9.5",
+  "revision": "e58e28c39631af4d1468ee57a853764e11c1d37e",
+  "local_dir": "ltx-095-configs",
+  "files": [
+    "model_index.json",
+    "scheduler/scheduler_config.json",
+    "transformer/config.json",
+    "vae/config.json"
+  ],
+  "size_gb": 0.0
+}

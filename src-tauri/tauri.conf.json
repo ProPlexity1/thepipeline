@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "neuralcut",
+  "productName": "The Pipeline",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.neuralcut.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -12,23 +12,22 @@
   "app": {
     "windows": [
       {
-        "title": "neuralcut",
-        "width": 800,
-        "height": 600,
+        "title": "The Pipeline",
+        "width": 1280,
+        "height": 820,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "minWidth": 1024,
+        "minHeight": 680,
+        "center": true
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' http://127.0.0.1:*; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* ws://127.0.0.1:*; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+      "devCsp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' http://127.0.0.1:*; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* ws://127.0.0.1:* ws://localhost:5173 http://localhost:5173; object-src 'none'",
       "assetProtocol": {
-        "enable": true,
-        "scope": [
-          "**",
-          "$HOME/Videos/NeuralCut/**",
-          "../outputs/**",
-          "**/outputs/**"
-        ]
+        "enable": false,
+        "scope": []
       }
     }
   },

@@ -1,0 +1,192 @@
+{
+  "identity": {
+    "id": "hunyuan15-hd",
+    "display_name": "HunyuanVideo 1.5 HD (text to video)",
+    "family": "hunyuanvideo-1.5",
+    "variant": "480p 4-step + 720p super-resolution, fp8",
+    "status": "active"
+  },
+  "capabilities": {
+    "text_to_video": true,
+    "image_to_video": false,
+    "video_to_video": false,
+    "audio_generation": false,
+    "lora": false,
+    "controlnet": false,
+    "max_prompt_tokens": 1000
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "Comfy-Org/HunyuanVideo_1.5_repackaged",
+    "revision": "1405a2b738c29b890cf6d03fc038d8d3e92eeed7",
+    "license": "Tencent Hunyuan Community License",
+    "estimated_download_size_gb": 8.7,
+    "required_disk_space_gb": 31,
+    "shared_resources": [
+      "comfyui-engine",
+      "hunyuan15-common",
+      "hunyuan15-upsampler-720p"
+    ],
+    "files": {
+      "required": [
+        "split_files/diffusion_models/hunyuanvideo1.5_480p_t2v_cfg_distilled_fp8_scaled.safetensors",
+        "split_files/loras/hunyuanvideo1.5_t2v_480p_lightx2v_4step_lora_rank_32_bf16.safetensors"
+      ]
+    }
+  },
+  "license_gate": {
+    "name": "Tencent Hunyuan Community License",
+    "url": "https://huggingface.co/tencent/HunyuanVideo-1.5/blob/main/LICENSE",
+    "summary": [
+      "Not licensed for use in the EU, UK or South Korea.",
+      "Free for personal and commercial use (services above 100M monthly users need a licence from Tencent).",
+      "Follow Tencent's acceptable use policy: no illegal, harmful or deceptive content."
+    ]
+  },
+  "runtime": {
+    "runner": "comfy_hunyuan15",
+    "engine": "shared:comfyui-engine/ComfyUI",
+    "common_root": "shared:hunyuan15-common/split_files",
+    "upsampler_root": "shared:hunyuan15-upsampler-720p/upsampler/720p_sr_distilled",
+    "engine_args": [
+      "--fast-disk",
+      "--disable-pinned-memory"
+    ],
+    "requires_model_index": false,
+    "sr_shift": 2.0,
+    "sr_steps": 6,
+    "sr_noise_augmentation": 0.7,
+    "mode": "t2v",
+    "model_root": "model:hunyuan15-hd/split_files",
+    "base_shift": 5.0,
+    "files": {
+      "sr": "hunyuanvideo1.5_720p_sr_distilled_fp8_scaled.safetensors",
+      "text_encoder": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "glyph_encoder": "byt5_small_glyphxl_fp16.safetensors",
+      "vae": "hunyuanvideo15_vae_fp16.safetensors",
+      "upsampler": "diffusion_pytorch_model.safetensors",
+      "base": "hunyuanvideo1.5_480p_t2v_cfg_distilled_fp8_scaled.safetensors",
+      "lora": "hunyuanvideo1.5_t2v_480p_lightx2v_4step_lora_rank_32_bf16.safetensors"
+    }
+  },
+  "hardware": {
+    "minimum_vram_gb": 8,
+    "recommended_vram_gb": 12,
+    "minimum_ram_gb": 16,
+    "recommended_ram_gb": 32,
+    "notes": "8.3B model in fp8; weights stream from disk on 8 GB cards."
+  },
+  "generation": {
+    "defaults": {
+      "steps": 4,
+      "cfg_scale": 1,
+      "width": 848,
+      "height": 480,
+      "num_frames": 121,
+      "fps": 24
+    },
+    "limits": {
+      "steps": {
+        "default": 4,
+        "min": 4,
+        "max": 8,
+        "step": 1
+      },
+      "cfg_scale": {
+        "default": 1,
+        "min": 1,
+        "max": 1,
+        "step": 1
+      },
+      "width": {
+        "default": 848,
+        "min": 480,
+        "max": 848,
+        "step": 16
+      },
+      "height": {
+        "default": 480,
+        "min": 480,
+        "max": 848,
+        "step": 16
+      },
+      "num_frames": {
+        "default": 121,
+        "min": 33,
+        "max": 121,
+        "step": 4
+      },
+      "fps": {
+        "default": 24,
+        "min": 24,
+        "max": 24,
+        "step": 1
+      }
+    },
+    "hidden_controls": [
+      "steps",
+      "cfg_scale",
+      "fps",
+      "negative_prompt"
+    ]
+  },
+  "profiles": {
+    "fast": {
+      "label": "Draft 480p",
+      "steps": 4,
+      "cfg_scale": 1,
+      "width": 848,
+      "height": 480,
+      "num_frames": 121,
+      "fps": 24,
+      "super_resolution": false
+    },
+    "balanced": {
+      "label": "HD 720p",
+      "steps": 4,
+      "cfg_scale": 1,
+      "width": 848,
+      "height": 480,
+      "num_frames": 121,
+      "fps": 24,
+      "super_resolution": true
+    },
+    "detailed": {
+      "label": "HD 720p, 8 steps",
+      "steps": 8,
+      "cfg_scale": 1,
+      "width": 848,
+      "height": 480,
+      "num_frames": 121,
+      "fps": 24,
+      "super_resolution": true
+    }
+  },
+  "ui": {
+    "tier": "ultra",
+    "featured": true,
+    "recommended": false,
+    "quality_rank": 2,
+    "speed_label": "Measuring on this PC",
+    "description": "Tencent's HunyuanVideo 1.5 straight from text: 480p in 4 steps, then rebuilt at 720p by its super-resolution model. For quick drafts; the image-to-video model gives more realistic, consistent results.",
+    "pros": [
+      "Very realistic",
+      "Native 720p detail (no shimmering upscale)",
+      "Strong prompt following"
+    ],
+    "cons": [
+      "29 GB download",
+      "No sound",
+      "Region-restricted licence"
+    ],
+    "tags": [
+      "text-to-video",
+      "realistic",
+      "hd"
+    ],
+    "accent_color": "#22c3dd"
+  },
+  "documentation": {
+    "huggingface": "https://huggingface.co/tencent/HunyuanVideo-1.5"
+  }
+}

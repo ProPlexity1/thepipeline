@@ -1,0 +1,14 @@
+{
+  "description": "HunyuanVideo 1.5 parts shared by its text-to-video and image-to-video models: text encoders, VAE and the 480p->720p super-resolution model.",
+  "provider": "huggingface",
+  "repo": "Comfy-Org/HunyuanVideo_1.5_repackaged",
+  "revision": "1405a2b738c29b890cf6d03fc038d8d3e92eeed7",
+  "local_dir": "hunyuan15-common",
+  "files": [
+    "split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors",
+    "split_files/text_encoders/byt5_small_glyphxl_fp16.safetensors",
+    "split_files/vae/hunyuanvideo15_vae_fp16.safetensors",
+    "split_files/diffusion_models/hunyuanvideo1.5_720p_sr_distilled_fp8_scaled.safetensors"
+  ],
+  "size_gb": 20.7
+}

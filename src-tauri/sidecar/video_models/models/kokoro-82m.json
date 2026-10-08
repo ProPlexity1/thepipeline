@@ -1,0 +1,115 @@
+{
+  "identity": {
+    "id": "kokoro-82m",
+    "kind": "voice",
+    "display_name": "Kokoro",
+    "family": "kokoro",
+    "variant": "82M, 54 voices, 9 languages",
+    "status": "active"
+  },
+  "capabilities": {
+    "text_to_video": false,
+    "text_to_speech": true,
+    "voice_design": false,
+    "voice_cloning": false
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "hexgrad/Kokoro-82M",
+    "revision": "f3ff3571791e39611d31c381e3a41a3af07b4987",
+    "license": "Apache-2.0",
+    "estimated_download_size_gb": 0.35,
+    "required_disk_space_gb": 1,
+    "files": {
+      "required": [
+        "kokoro-v1_0.pth",
+        "config.json",
+        "voices/af_alloy.pt",
+        "voices/af_aoede.pt",
+        "voices/af_bella.pt",
+        "voices/af_heart.pt",
+        "voices/af_jessica.pt",
+        "voices/af_kore.pt",
+        "voices/af_nicole.pt",
+        "voices/af_nova.pt",
+        "voices/af_river.pt",
+        "voices/af_sarah.pt",
+        "voices/af_sky.pt",
+        "voices/am_adam.pt",
+        "voices/am_echo.pt",
+        "voices/am_eric.pt",
+        "voices/am_fenrir.pt",
+        "voices/am_liam.pt",
+        "voices/am_michael.pt",
+        "voices/am_onyx.pt",
+        "voices/am_puck.pt",
+        "voices/am_santa.pt",
+        "voices/bf_alice.pt",
+        "voices/bf_emma.pt",
+        "voices/bf_isabella.pt",
+        "voices/bf_lily.pt",
+        "voices/bm_daniel.pt",
+        "voices/bm_fable.pt",
+        "voices/bm_george.pt",
+        "voices/bm_lewis.pt",
+        "voices/ef_dora.pt",
+        "voices/em_alex.pt",
+        "voices/em_santa.pt",
+        "voices/ff_siwis.pt",
+        "voices/hf_alpha.pt",
+        "voices/hf_beta.pt",
+        "voices/hm_omega.pt",
+        "voices/hm_psi.pt",
+        "voices/if_sara.pt",
+        "voices/im_nicola.pt",
+        "voices/jf_alpha.pt",
+        "voices/jf_gongitsune.pt",
+        "voices/jf_nezumi.pt",
+        "voices/jf_tebukuro.pt",
+        "voices/jm_kumo.pt",
+        "voices/pf_dora.pt",
+        "voices/pm_alex.pt",
+        "voices/pm_santa.pt",
+        "voices/zf_xiaobei.pt",
+        "voices/zf_xiaoni.pt",
+        "voices/zf_xiaoxiao.pt",
+        "voices/zf_xiaoyi.pt",
+        "voices/zm_yunjian.pt",
+        "voices/zm_yunxi.pt",
+        "voices/zm_yunxia.pt",
+        "voices/zm_yunyang.pt"
+      ]
+    }
+  },
+  "runtime": {
+    "runner": "kokoro",
+    "model_root": "model:kokoro-82m",
+    "requires_model_index": false
+  },
+  "hardware": {
+    "minimum_vram_gb": 0,
+    "recommended_vram_gb": 2,
+    "minimum_ram_gb": 4,
+    "recommended_ram_gb": 8
+  },
+  "ui": {
+    "tier": "voice",
+    "quality_rank": 1,
+    "recommended": true,
+    "speed_label": "Faster than real time",
+    "description": "Natural, clear voice-overs in a fraction of a second per sentence. 54 ready-made voices (American and British English, Spanish, French, Hindi, Italian, Japanese, Portuguese, Chinese). Runs even without a graphics card.",
+    "pros": [
+      "Very fast",
+      "Tiny (0.35 GB)",
+      "Apache 2.0"
+    ],
+    "cons": [
+      "Preset voices only (no cloning)"
+    ],
+    "tags": [
+      "text-to-speech",
+      "voice-over"
+    ],
+    "accent_color": "#2fcf8f"
+  }
+}

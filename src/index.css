@@ -1,32 +1,67 @@
 @import "tailwindcss";
 
+/* Neutral graphite theme. Surfaces step up in lightness with elevation
+   (canvas -> panel -> raised control -> hover) so layers read clearly,
+   and text greys are tuned for >= 4.5:1 contrast on the panel colour. */
 @theme {
-  --color-bg-primary: #0a0a0f;
-  --color-bg-secondary: #12121a;
-  --color-bg-tertiary: #1a1a2e;
-  --color-bg-card: #16162a;
-  --color-bg-hover: #1e1e3a;
-  --color-border-dim: #2a2a4a;
-  --color-border-active: #4a4a8a;
-  --color-accent-blue: #3b82f6;
-  --color-accent-purple: #8b5cf6;
-  --color-accent-cyan: #06b6d4;
-  --color-accent-green: #10b981;
-  --color-accent-amber: #f59e0b;
-  --color-accent-red: #ef4444;
-  --color-text-primary: #e2e8f0;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
+  --color-bg-primary: #0f1014;   /* app canvas */
+  --color-bg-secondary: #17181d; /* panels, sidebar, cards */
+  --color-bg-tertiary: #1f2128;  /* inputs, raised controls */
+  --color-bg-card: #1b1c22;
+  --color-bg-hover: #282a33;
+  --color-border-dim: #2a2c35;
+  --color-border-active: #434755;
+  --color-accent-blue: #5b8cff;
+  --color-accent-purple: #9b7bff;
+  --color-accent-cyan: #22c3dd;
+  --color-accent-green: #2fcf8f;
+  --color-accent-amber: #f5b03c;
+  --color-accent-red: #f46a6a;
+  --color-text-primary: #eef0f4;
+  --color-text-secondary: #b3b8c4;
+  --color-text-muted: #8a909e;
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+/* One motion vocabulary for the whole app: short, eased, interruptible. */
+:root {
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+}
+
+button,
+a,
+input,
+select,
+textarea,
+[role="button"] {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: var(--dur-base);
+  transition-timing-function: var(--ease-out-quint);
+}
+
+button:not(:disabled):active {
+  transform: scale(0.98);
+  transition-duration: var(--dur-fast);
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent-purple) 70%, transparent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+input[type="range"] {
+  accent-color: var(--color-accent-purple);
+}
+
+/* Motion is part of how progress is communicated here (download and job
+   bars), so the app animates even when Windows animation effects are off. */
 
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
-}
-
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 15px rgba(139, 92, 246, 0.3); }
-  50% { box-shadow: 0 0 30px rgba(139, 92, 246, 0.6); }
 }
 
 @keyframes progress-stripe {
@@ -35,56 +70,60 @@
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent 0%, rgba(139, 92, 246, 0.1) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(155, 123, 255, 0.1) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s infinite;
 }
 
 .progress-striped {
   background-image: linear-gradient(
     45deg,
-    rgba(255, 255, 255, 0.1) 25%,
+    rgba(255, 255, 255, 0.12) 25%,
     transparent 25%,
     transparent 50%,
-    rgba(255, 255, 255, 0.1) 50%,
-    rgba(255, 255, 255, 0.1) 75%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.12) 75%,
     transparent 75%
   );
   background-size: 1rem 1rem;
-  animation: progress-stripe 0.5s linear infinite;
+  animation: progress-stripe 0.6s linear infinite;
 }
 
-/* Custom scrollbar */
+/* Subtle top highlight that makes raised surfaces read as raised. */
+.surface {
+  background-color: var(--color-bg-secondary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a0a0f;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2a4a;
-  border-radius: 3px;
+  background: var(--color-border-dim);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #4a4a8a;
+  background: var(--color-border-active);
+  background-clip: padding-box;
+}
+
+html, body {
+  background: var(--color-bg-primary);
 }
 
 body {
-  background: #0a0a0f;
-  color: #e2e8f0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--color-text-primary);
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
 
-/* Window drag region (simulated titlebar) */
-.titlebar-drag {
-  -webkit-app-region: drag;
-}
-.titlebar-no-drag {
-  -webkit-app-region: no-drag;
+::selection {
+  background: color-mix(in srgb, var(--color-accent-purple) 35%, transparent);
 }

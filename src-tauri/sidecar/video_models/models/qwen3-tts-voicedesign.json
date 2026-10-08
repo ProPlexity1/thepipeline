@@ -1,0 +1,73 @@
+{
+  "identity": {
+    "id": "qwen3-tts-voicedesign",
+    "kind": "voice",
+    "display_name": "Qwen3-TTS Voice Designer",
+    "family": "qwen3-tts",
+    "variant": "1.7B, describe any voice",
+    "status": "active"
+  },
+  "capabilities": {
+    "text_to_video": false,
+    "text_to_speech": true,
+    "voice_design": true,
+    "voice_cloning": false
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+    "revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+    "license": "Apache-2.0",
+    "estimated_download_size_gb": 4.52,
+    "required_disk_space_gb": 6,
+    "files": {
+      "required": [
+        "config.json",
+        "generation_config.json",
+        "merges.txt",
+        "model.safetensors",
+        "preprocessor_config.json",
+        "speech_tokenizer/config.json",
+        "speech_tokenizer/configuration.json",
+        "speech_tokenizer/model.safetensors",
+        "speech_tokenizer/preprocessor_config.json",
+        "tokenizer_config.json",
+        "vocab.json"
+      ]
+    }
+  },
+  "runtime": {
+    "runner": "qwen_tts",
+    "model_root": "model:qwen3-tts-voicedesign",
+    "mode": "voice_design",
+    "requires_model_index": false
+  },
+  "hardware": {
+    "minimum_vram_gb": 6,
+    "recommended_vram_gb": 8,
+    "minimum_ram_gb": 12,
+    "recommended_ram_gb": 16
+  },
+  "ui": {
+    "tier": "voice",
+    "quality_rank": 3,
+    "recommended": true,
+    "speed_label": "A few seconds per sentence",
+    "description": "Natural, expressive voices you describe in words: age, accent, tone, energy (\"a warm, confident male narrator in his 40s\"). Great for ads, narration and characters.",
+    "pros": [
+      "Very natural, human delivery",
+      "Design any voice from a description",
+      "10 languages",
+      "Apache 2.0"
+    ],
+    "cons": [
+      "4.5 GB download",
+      "Uses the graphics card"
+    ],
+    "tags": [
+      "text-to-speech",
+      "voice-design"
+    ],
+    "accent_color": "#2fcf8f"
+  }
+}

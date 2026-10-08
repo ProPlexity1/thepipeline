@@ -1,0 +1,70 @@
+{
+  "identity": {
+    "id": "chat-gemma4-26b-a4b",
+    "kind": "chat",
+    "display_name": "Gemma 4 26B (A4B)",
+    "family": "gemma-4",
+    "variant": "mixture-of-experts, Q4_K_M, with vision",
+    "status": "active"
+  },
+  "capabilities": {
+    "text_to_video": false,
+    "chat": true,
+    "vision": true,
+    "tool_calling": true
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "unsloth/gemma-4-26B-A4B-it-GGUF",
+    "revision": "c099eb48e663fd284577b04978a94ffccb261841",
+    "license": "Apache-2.0",
+    "estimated_download_size_gb": 18.1,
+    "required_disk_space_gb": 19,
+    "shared_resources": [
+      "llama-cpp"
+    ],
+    "files": {
+      "required": [
+        "gemma-4-26B-A4B-it-UD-Q4_K_M.gguf",
+        "mmproj-F16.gguf"
+      ]
+    }
+  },
+  "runtime": {
+    "runner": "llama",
+    "engine": "shared:llama-cpp/bin",
+    "model_root": "model:chat-gemma4-26b-a4b",
+    "model_file": "gemma-4-26B-A4B-it-UD-Q4_K_M.gguf",
+    "mmproj_file": "mmproj-F16.gguf",
+    "context": 32768,
+    "requires_model_index": false
+  },
+  "hardware": {
+    "minimum_vram_gb": 8,
+    "recommended_vram_gb": 16,
+    "minimum_ram_gb": 32,
+    "recommended_ram_gb": 32
+  },
+  "ui": {
+    "tier": "chat",
+    "quality_rank": 3,
+    "recommended": false,
+    "speed_label": "Quick",
+    "description": "A large mixture-of-experts model that only uses 4B parameters per word, so it stays quick while writing at a much higher level. Needs 32 GB of RAM.",
+    "pros": [
+      "Much stronger reasoning and writing",
+      "Quick for its size",
+      "Understands images"
+    ],
+    "cons": [
+      "18 GB download",
+      "Needs 32 GB RAM"
+    ],
+    "tags": [
+      "agent",
+      "chat",
+      "vision"
+    ],
+    "accent_color": "#5b8cff"
+  }
+}

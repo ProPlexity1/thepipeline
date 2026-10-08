@@ -10,3 +10,25 @@ sentencepiece
 protobuf
 imageio
 imageio-ffmpeg
+
+# MiniMax H3 runs on a private headless ComfyUI (pinned commit, downloaded on demand).
+# Its runtime dependencies, minus the web frontend/template packages it doesn't need:
+torchsde
+einops
+aiohttp>=3.11.8
+yarl>=1.18.0
+pyyaml
+scipy
+psutil
+alembic
+SQLAlchemy>=2.0.0
+filelock
+av>=17.0.0
+comfy-kitchen==0.2.36
+comfy-aimdo==0.5.5
+simpleeval>=1.0.0
+blake3
+kornia>=0.7.1
+spandrel
+pydantic~=2.0
+pydantic-settings~=2.0

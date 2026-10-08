@@ -1,0 +1,225 @@
+{
+  "identity": {
+    "id": "mochi-1-preview",
+    "display_name": "Mochi 1 Preview",
+    "family": "mochi",
+    "variant": "preview",
+    "status": "disabled",
+    "disabled_reason": "10B model; does not fit 8GB VRAM."
+  },
+  "capabilities": {
+    "text_to_video": true,
+    "image_to_video": false,
+    "video_to_video": false,
+    "audio_generation": false,
+    "lora": false,
+    "controlnet": false,
+    "max_prompt_tokens": null
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "genmo/mochi-1-preview",
+    "revision": "main",
+    "download_method": "hf_hub",
+    "estimated_download_size_gb": 19.1,
+    "required_disk_space_gb": 21,
+    "shared_resources": null,
+    "files": {
+      "required": [
+        "model_index.json",
+        "scheduler/scheduler_config.json",
+        "text_encoder/config.json",
+        "text_encoder/model-00001-of-00004.safetensors",
+        "text_encoder/model-00002-of-00004.safetensors",
+        "text_encoder/model-00003-of-00004.safetensors",
+        "text_encoder/model-00004-of-00004.safetensors",
+        "text_encoder/model.safetensors.index.json",
+        "tokenizer/added_tokens.json",
+        "tokenizer/special_tokens_map.json",
+        "tokenizer/spiece.model",
+        "tokenizer/tokenizer_config.json",
+        "transformer/config.json",
+        "transformer/diffusion_pytorch_model.bf16-00001-of-00003.safetensors",
+        "transformer/diffusion_pytorch_model.bf16-00002-of-00003.safetensors",
+        "transformer/diffusion_pytorch_model.bf16-00003-of-00003.safetensors",
+        "transformer/diffusion_pytorch_model.safetensors.index.bf16.json",
+        "vae/config.json",
+        "vae/diffusion_pytorch_model.bf16.safetensors"
+      ],
+      "optional": [],
+      "generated": []
+    }
+  },
+  "runtime": {
+    "backend": "diffusers",
+    "pipeline_class": "MochiPipeline",
+    "load_mode": "from_pretrained",
+    "transformer_class": null,
+    "transformer_file": null,
+    "dtype": "bfloat16",
+    "requires_model_index": true,
+    "expected_model_index_class": "MochiPipeline",
+    "min_diffusers_version": "0.31.0",
+    "load_kwargs": {
+      "variant": "bf16"
+    },
+    "alignment_policy": "validate downloaded model_index.json _class_name against runtime.pipeline_class before generation"
+  },
+  "optimization": {
+    "offload_strategy": "sequential",
+    "vae_tiling": true,
+    "vae_slicing": true,
+    "attention_slicing": false,
+    "torch_compile": false,
+    "quantization": null,
+    "notes": "Loaded with variant='bf16' — confirm MochiPipeline's tiling/slicing API location the same way CogVideoX's was found to differ from the pipeline-level default."
+  },
+  "hardware": {
+    "minimum_vram_gb": 16,
+    "recommended_vram_gb": 24,
+    "recommended_ram_gb": 32,
+    "recommended_gpu": "16GB+ VRAM"
+  },
+  "generation": {
+    "defaults": {
+      "steps": 30,
+      "cfg_scale": 4,
+      "width": 848,
+      "height": 480,
+      "num_frames": 79,
+      "fps": 30
+    },
+    "limits": {
+      "steps": {
+        "default": 30,
+        "min": 15,
+        "max": 64,
+        "step": 5
+      },
+      "cfg_scale": {
+        "default": 4,
+        "min": 1,
+        "max": 8,
+        "step": 0.5
+      },
+      "width": {
+        "default": 848,
+        "min": 480,
+        "max": 848,
+        "step": 8
+      },
+      "height": {
+        "default": 480,
+        "min": 320,
+        "max": 480,
+        "step": 8
+      },
+      "num_frames": {
+        "default": 79,
+        "min": 7,
+        "max": 163,
+        "step": 6
+      },
+      "fps": {
+        "default": 30,
+        "min": 16,
+        "max": 30,
+        "step": 1
+      }
+    }
+  },
+  "ui": {
+    "tier": "ultra",
+    "featured": false,
+    "recommended": false,
+    "description": "State-of-the-art open video model by Genmo, high-fidelity motion. Not yet tested end-to-end in this app.",
+    "pros": [
+      "High-fidelity motion, strong reputation for physical plausibility"
+    ],
+    "cons": [
+      "Large download and VRAM footprint",
+      "Not yet tested in this app"
+    ],
+    "tags": [
+      "text-to-video",
+      "high-fidelity"
+    ],
+    "thumbnail": null,
+    "accent_color": "#a855f7"
+  },
+  "documentation": {
+    "huggingface": "https://huggingface.co/genmo/mochi-1-preview",
+    "diffusers_docs": null,
+    "github": null,
+    "paper": null
+  },
+  "verification": {
+    "status": "unverified",
+    "verified_on": null,
+    "verified_sources": [],
+    "notes": "Never generated successfully in this app. All defaults are estimates carried from the pre-VMR config. Full research + a real test run required before trusting this entry."
+  },
+  "scheduler": {
+    "default": "FlowMatch",
+    "class_name": "FlowMatchEulerDiscreteScheduler",
+    "params": {}
+  },
+  "quantization": {
+    "default": "bf16",
+    "supported": [
+      "none",
+      "bf16",
+      "fp8",
+      "auto"
+    ]
+  },
+  "validation": {
+    "min_frames": 8,
+    "min_width": 256,
+    "min_height": 256,
+    "check_nan": true,
+    "check_black_frames": true,
+    "min_std_dev": 0.005,
+    "max_std_dev": 0.45,
+    "min_fps": 30,
+    "max_fps": 30
+  },
+  "profiles": {
+    "fast": {
+      "label": "Fast",
+      "description": "Fast draft generation",
+      "steps": 30,
+      "cfg_scale": 4.5,
+      "width": 848,
+      "height": 480,
+      "num_frames": 49,
+      "fps": 24,
+      "scheduler": "FlowMatch",
+      "quantization": "bf16"
+    },
+    "balanced": {
+      "label": "Balanced",
+      "description": "Realistic motion & balance",
+      "steps": 50,
+      "cfg_scale": 6,
+      "width": 848,
+      "height": 480,
+      "num_frames": 61,
+      "fps": 24,
+      "scheduler": "FlowMatch",
+      "quantization": "bf16"
+    },
+    "detailed": {
+      "label": "Detailed",
+      "description": "Refined physics & texture render",
+      "steps": 64,
+      "cfg_scale": 6.5,
+      "width": 848,
+      "height": 480,
+      "num_frames": 85,
+      "fps": 24,
+      "scheduler": "FlowMatch",
+      "quantization": "bf16"
+    }
+  }
+}

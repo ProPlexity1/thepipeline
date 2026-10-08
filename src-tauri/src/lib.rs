@@ -1,11 +1,21 @@
-use std::process::Command;
+use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
-use tauri::{Manager, State}; // Added Manager trait here
+use tauri::{Manager, RunEvent, State};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
-pub struct SidecarProcess(pub Mutex<Option<std::process::Child>>);
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// The running Python sidecar plus the port and auth token it was started with.
+pub struct Sidecar {
+    child: Option<Child>,
+    port: u16,
+    token: String,
+}
+
+pub struct SidecarState(pub Mutex<Sidecar>);
 
 #[derive(serde::Serialize)]
 pub struct GpuInfo {
@@ -20,195 +30,56 @@ pub struct GpuInfo {
 pub struct SidecarStatus {
     pub running: bool,
     pub port: u16,
+    pub token: String,
     pub pid: Option<u32>,
     pub message: String,
 }
 
-// REMOVED 'pub'
+fn no_window(cmd: &mut Command) -> &mut Command {
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd
+}
+
 #[tauri::command]
 fn detect_gpu() -> GpuInfo {
-    let output = Command::new("nvidia-smi")
-        .args([
-            "--query-gpu=name,memory.total,driver_version",
-            "--format=csv,noheader,nounits",
-        ])
-        .output();
+    let output = no_window(Command::new("nvidia-smi").args([
+        "--query-gpu=name,memory.total,driver_version",
+        "--format=csv,noheader,nounits",
+    ]))
+    .output();
 
-    match output {
-        Ok(out) if out.status.success() => {
+    if let Ok(out) = output {
+        if out.status.success() {
             let raw = String::from_utf8_lossy(&out.stdout);
-            let line = raw.lines().next().unwrap_or("").trim().to_string();
-            let parts: Vec<&str> = line.split(',').map(|s| s.trim()).collect();
-
+            let parts: Vec<String> = raw
+                .lines()
+                .next()
+                .unwrap_or("")
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect();
             if parts.len() >= 3 {
-                let name = parts[0].to_string();
                 let vram_mb: u32 = parts[1].parse().unwrap_or(0);
-                let vram_gb = (vram_mb as f32 / 1024.0).round() as u32;
-                let driver = parts[2].to_string();
-
-                let cuda = Command::new("nvidia-smi")
-                    .args(["--query-gpu=cuda_version", "--format=csv,noheader,nounits"])
-                    .output()
-                    .ok()
-                    .and_then(|o| {
-                        if o.status.success() {
-                            Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or_else(|| "Unknown".to_string());
-
-                GpuInfo {
-                    name,
-                    vram: vram_gb,
-                    driver,
+                let cuda = no_window(Command::new("nvidia-smi").args([
+                    "--query-gpu=cuda_version",
+                    "--format=csv,noheader,nounits",
+                ]))
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                .unwrap_or_else(|| "Unknown".to_string());
+                return GpuInfo {
+                    name: parts[0].clone(),
+                    vram: (vram_mb as f32 / 1024.0).round() as u32,
+                    driver: parts[2].clone(),
                     cuda_version: cuda,
                     detected: true,
-                }
-            } else {
-                no_gpu()
-            }
-        }
-        _ => no_gpu(),
-    }
-}
-
-// REMOVED 'pub'
-#[tauri::command]
-fn start_sidecar(
-    state: State<SidecarProcess>,
-    app_handle: tauri::AppHandle,
-) -> SidecarStatus {
-    let mut child_lock = state.0.lock().unwrap();
-
-    // Check if the existing child is actually still alive
-    if let Some(ref mut child) = *child_lock {
-        match child.try_wait() {
-            Ok(Some(_exit_status)) => {
-                // Child has exited — clear the stale handle
-                println!("[NeuralCut] Previous sidecar process has exited, clearing handle");
-                *child_lock = None;
-            }
-            Ok(None) => {
-                // Still running
-                return SidecarStatus {
-                    running: true,
-                    port: 8188,
-                    pid: Some(child.id()),
-                    message: "Sidecar already running".to_string(),
                 };
             }
-            Err(_) => {
-                // Error checking — assume dead, clear handle
-                *child_lock = None;
-            }
         }
     }
-
-    // Kill any orphaned process holding port 8188 from a previous app run
-    let _ = Command::new("cmd")
-        .args(["/C", "for /f \"tokens=5\" %a in ('netstat -ano -p TCP ^| findstr \"127.0.0.1:8188\" ^| findstr \"LISTENING\"') do taskkill /F /PID %a"])
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW
-        .output();
-    // Brief pause to let the OS release the socket
-    std::thread::sleep(std::time::Duration::from_millis(300));
-
-    let resource_path = app_handle
-        .path()
-        .resource_dir()
-        .unwrap_or_else(|_| std::path::PathBuf::from("."));
-
-    let current_dir = std::env::current_dir()
-        .unwrap_or_else(|_| std::path::PathBuf::from("."));
-
-    println!("[NeuralCut] current_dir: {:?}", current_dir);
-    println!("[NeuralCut] resource_dir: {:?}", resource_path);
-
-    // Try multiple possible paths
-    let possible_pythons = vec![
-        current_dir.join("src-tauri/sidecar/venv/Scripts/python.exe"),
-        current_dir.join("sidecar/venv/Scripts/python.exe"),
-        resource_path.join("sidecar/venv/Scripts/python.exe"),
-    ];
-
-    let possible_scripts = vec![
-        current_dir.join("src-tauri/sidecar/main.py"),
-        current_dir.join("sidecar/main.py"),
-        resource_path.join("sidecar/main.py"),
-    ];
-
-    let python_path = possible_pythons.iter()
-        .find(|p| {
-            println!("[NeuralCut] Checking python path: {:?} exists={}", p, p.exists());
-            p.exists()
-        })
-        .cloned();
-
-    let script_path = possible_scripts.iter()
-        .find(|p| {
-            println!("[NeuralCut] Checking script path: {:?} exists={}", p, p.exists());
-            p.exists()
-        })
-        .cloned();
-
-    match (python_path, script_path) {
-        (Some(python), Some(script)) => {
-            println!("[NeuralCut] Spawning: {:?} {:?}", python, script);
-            let mut cmd = Command::new(&python);
-            cmd.arg(&script)
-                .env("SIDECAR_PORT", "8188")
-                .env("HF_TOKEN", std::env::var("HF_TOKEN").unwrap_or_else(|_| "".into()));
-
-            if let Ok(models_dir) = std::env::var("MODELS_DIR") {
-                cmd.env("MODELS_DIR", models_dir);
-            }
-
-            match cmd.spawn()
-            {
-                Ok(child) => {
-                    let pid = child.id();
-                    *child_lock = Some(child);
-                    SidecarStatus {
-                        running: true,
-                        port: 8188,
-                        pid: Some(pid),
-                        message: "Sidecar started successfully".to_string(),
-                    }
-                }
-                Err(e) => SidecarStatus {
-                    running: false,
-                    port: 8188,
-                    pid: None,
-                    message: format!("Failed to spawn sidecar: {}", e),
-                },
-            }
-        }
-        (python, script) => SidecarStatus {
-            running: false,
-            port: 8188,
-            pid: None,
-            message: format!(
-                "Paths not found — python: {:?}, script: {:?}",
-                python, script
-            ),
-        },
-    }
-}
-
-// REMOVED 'pub'
-#[tauri::command]
-fn stop_sidecar(state: State<SidecarProcess>) -> bool {
-    let mut child_lock = state.0.lock().unwrap();
-    if let Some(mut child) = child_lock.take() {
-        let _ = child.kill();
-        true
-    } else {
-        false
-    }
-}
-
-fn no_gpu() -> GpuInfo {
     GpuInfo {
         name: "No NVIDIA GPU detected".to_string(),
         vram: 0,
@@ -218,10 +89,124 @@ fn no_gpu() -> GpuInfo {
     }
 }
 
+fn random_token() -> String {
+    let mut buf = [0u8; 32];
+    getrandom::getrandom(&mut buf).expect("OS random number generator unavailable");
+    buf.iter().map(|b| format!("{:02x}", b)).collect()
+}
+
+/// Ask the OS for a free loopback port instead of fighting over a fixed one.
+fn free_port() -> u16 {
+    std::net::TcpListener::bind("127.0.0.1:0")
+        .and_then(|l| l.local_addr())
+        .map(|a| a.port())
+        .unwrap_or(47821)
+}
+
+fn status(s: &Sidecar, running: bool, message: &str) -> SidecarStatus {
+    SidecarStatus {
+        running,
+        port: s.port,
+        token: s.token.clone(),
+        pid: s.child.as_ref().map(|c| c.id()),
+        message: message.to_string(),
+    }
+}
+
+#[tauri::command]
+fn start_sidecar(state: State<SidecarState>, app_handle: tauri::AppHandle) -> SidecarStatus {
+    let mut s = state.0.lock().unwrap();
+
+    if let Some(child) = s.child.as_mut() {
+        match child.try_wait() {
+            Ok(None) => return status(&s, true, "Sidecar already running"),
+            _ => s.child = None, // exited or unknown: start a fresh one
+        }
+    }
+
+    let resource_dir = app_handle
+        .path()
+        .resource_dir()
+        .unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let roots = [cwd.join("src-tauri/sidecar"), cwd.join("sidecar"), resource_dir.join("sidecar")];
+    let found = roots.iter().find(|r| {
+        r.join("venv/Scripts/python.exe").exists() && r.join("main.py").exists()
+    });
+    let Some(root) = found else {
+        return status(&s, false, "NeuralCut's AI engine files are missing. Please reinstall.");
+    };
+
+    let log_dir = app_handle
+        .path()
+        .app_local_data_dir()
+        .unwrap_or_else(|_| std::env::temp_dir())
+        .join("logs");
+    let _ = std::fs::create_dir_all(&log_dir);
+    // Append across restarts so a crash's log survives the automatic restart;
+    // rotate once it passes 5 MB so it never grows without bound.
+    let log_path = log_dir.join("sidecar.log");
+    if std::fs::metadata(&log_path).map(|m| m.len() > 5 * 1024 * 1024).unwrap_or(false) {
+        let _ = std::fs::rename(&log_path, log_dir.join("sidecar.old.log"));
+    }
+    let log = std::fs::OpenOptions::new().create(true).append(true).open(&log_path);
+
+    s.port = free_port();
+    s.token = random_token();
+
+    let mut cmd = Command::new(root.join("venv/Scripts/python.exe"));
+    cmd.arg(root.join("main.py"))
+        .current_dir(root)
+        .env("SIDECAR_PORT", s.port.to_string())
+        .env("NEURALCUT_TOKEN", &s.token)
+        .env("PYTHONUNBUFFERED", "1")
+        .env("NEURALCUT_LOG_DIR", &log_dir)
+        .stdin(Stdio::null());
+    if let Ok(log) = log {
+        if let Ok(err) = log.try_clone() {
+            cmd.stdout(log).stderr(err);
+        }
+    }
+    no_window(&mut cmd);
+
+    match cmd.spawn() {
+        Ok(child) => {
+            s.child = Some(child);
+            status(&s, true, "Sidecar started")
+        }
+        Err(e) => status(&s, false, &format!("Failed to start the AI engine: {}", e)),
+    }
+}
+
+/// Kill the sidecar and everything it spawned (generation workers, ComfyUI).
+fn kill_tree(s: &mut Sidecar) {
+    if let Some(mut child) = s.child.take() {
+        #[cfg(target_os = "windows")]
+        {
+            let _ = no_window(Command::new("taskkill").args(["/F", "/T", "/PID", &child.id().to_string()]))
+                .output();
+        }
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+}
+
+#[tauri::command]
+fn stop_sidecar(state: State<SidecarState>) -> bool {
+    let mut s = state.0.lock().unwrap();
+    let was_running = s.child.is_some();
+    kill_tree(&mut s);
+    was_running
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .manage(SidecarProcess(Mutex::new(None)))
+    let app = tauri::Builder::default()
+        .manage(SidecarState(Mutex::new(Sidecar {
+            child: None,
+            port: 0,
+            token: String::new(),
+        })))
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -232,11 +217,15 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            detect_gpu,
-            start_sidecar,
-            stop_sidecar
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .invoke_handler(tauri::generate_handler![detect_gpu, start_sidecar, stop_sidecar])
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|handle, event| {
+        if let RunEvent::Exit = event {
+            let state = handle.state::<SidecarState>();
+            let mut s = state.0.lock().unwrap();
+            kill_tree(&mut s);
+        }
+    });
 }

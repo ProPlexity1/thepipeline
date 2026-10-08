@@ -1,0 +1,235 @@
+{
+  "identity": {
+    "id": "wan-1.3b",
+    "display_name": "Wan 2.1 T2V 1.3B",
+    "family": "wan",
+    "variant": "1.3B",
+    "status": "disabled",
+    "disabled_reason": "Superseded by Wan 2.2 Fast; fp32 text encoder wastes 11GB."
+  },
+  "capabilities": {
+    "text_to_video": true,
+    "image_to_video": false,
+    "video_to_video": false,
+    "audio_generation": false,
+    "lora": false,
+    "controlnet": false,
+    "max_prompt_tokens": 300
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
+    "revision": "main",
+    "download_method": "hf_hub",
+    "estimated_download_size_gb": 3.2,
+    "required_disk_space_gb": 4,
+    "shared_resources": null,
+    "files": {
+      "required": [
+        "model_index.json",
+        "scheduler/scheduler_config.json",
+        "text_encoder/config.json",
+        "text_encoder/model-00001-of-00005.safetensors",
+        "text_encoder/model-00002-of-00005.safetensors",
+        "text_encoder/model-00003-of-00005.safetensors",
+        "text_encoder/model-00004-of-00005.safetensors",
+        "text_encoder/model-00005-of-00005.safetensors",
+        "text_encoder/model.safetensors.index.json",
+        "tokenizer/tokenizer.json",
+        "tokenizer/tokenizer_config.json",
+        "tokenizer/special_tokens_map.json",
+        "transformer/config.json",
+        "transformer/diffusion_pytorch_model-00001-of-00002.safetensors",
+        "transformer/diffusion_pytorch_model-00002-of-00002.safetensors",
+        "transformer/diffusion_pytorch_model.safetensors.index.json",
+        "vae/config.json",
+        "vae/diffusion_pytorch_model.safetensors"
+      ],
+      "optional": [],
+      "generated": []
+    }
+  },
+  "runtime": {
+    "backend": "diffusers",
+    "pipeline_class": "WanPipeline",
+    "load_mode": "from_pretrained",
+    "transformer_class": null,
+    "transformer_file": null,
+    "dtype": "bfloat16",
+    "requires_model_index": true,
+    "expected_model_index_class": "WanPipeline",
+    "min_diffusers_version": "0.34.0",
+    "load_kwargs": {},
+    "alignment_policy": "validate downloaded model_index.json _class_name against runtime.pipeline_class before generation"
+  },
+  "optimization": {
+    "offload_strategy": "sequential",
+    "vae_tiling": true,
+    "vae_slicing": true,
+    "attention_slicing": false,
+    "torch_compile": false,
+    "quantization": null,
+    "notes": "Wan uses Flow Matching architecture with novel 3D causal VAE. VAE can handle unlimited-length video encoding without losing temporal info. Enable tiling for consumer GPUs."
+  },
+  "hardware": {
+    "minimum_vram_gb": 6,
+    "recommended_vram_gb": 8,
+    "recommended_ram_gb": 16,
+    "recommended_gpu": "6GB+ VRAM (8GB+ recommended for 480P)"
+  },
+  "generation": {
+    "defaults": {
+      "steps": 20,
+      "cfg_scale": 4,
+      "width": 640,
+      "height": 352,
+      "num_frames": 49,
+      "fps": 16
+    },
+    "limits": {
+      "steps": {
+        "default": 20,
+        "min": 20,
+        "max": 100,
+        "step": 5
+      },
+      "cfg_scale": {
+        "default": 4,
+        "min": 2,
+        "max": 8,
+        "step": 0.5
+      },
+      "width": {
+        "default": 640,
+        "min": 480,
+        "max": 1280,
+        "step": 16
+      },
+      "height": {
+        "default": 352,
+        "min": 320,
+        "max": 720,
+        "step": 16
+      },
+      "num_frames": {
+        "default": 49,
+        "min": 24,
+        "max": 240,
+        "step": 8
+      },
+      "fps": {
+        "default": 16,
+        "min": 16,
+        "max": 30,
+        "step": 1
+      }
+    }
+  },
+  "ui": {
+    "tier": "standard",
+    "featured": true,
+    "recommended": true,
+    "description": "Extremely efficient 1.3B lightweight model. Excellent for RTX 5060 and consumer GPUs. Generates 5-second 480P videos in ~4-5 minutes. Best balance of speed and quality.",
+    "pros": [
+      "Only 3.2GB download, 8.19GB VRAM required",
+      "Multilingual support (English + Chinese)",
+      "Fast generation (5s video in 4 mins on RTX 4090)",
+      "Flow Matching architecture more stable than diffusion",
+      "Handles variable-length videos efficiently"
+    ],
+    "cons": [
+      "No audio support",
+      "720P resolution less stable than 480P",
+      "Smaller model = less detail than 14B variants"
+    ],
+    "tags": [
+      "text-to-video",
+      "lightweight",
+      "consumer-gpu",
+      "fast",
+      "multilingual"
+    ],
+    "thumbnail": null,
+    "accent_color": "#10b981"
+  },
+  "documentation": {
+    "huggingface": "https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
+    "diffusers_docs": "https://huggingface.co/docs/diffusers/api/pipelines/wan",
+    "github": "https://github.com/Wan-Video/Wan2.1",
+    "paper": "https://arxiv.org/abs/2501.08511"
+  },
+  "verification": {
+    "status": "verified",
+    "verified_on": "2026-07-27",
+    "verified_sources": [
+      "https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
+      "https://huggingface.co/docs/diffusers/api/pipelines/wan",
+      "https://github.com/Wan-Video/Wan2.1"
+    ],
+    "notes": "Official Diffusers integration confirmed. Generation defaults based on Wan official model card. 480P is primary tested resolution with highest stability. 120 frames @ 24fps = 5s video (native Wan design)."
+  },
+  "scheduler": {
+    "default": "FlowMatch",
+    "class_name": "FlowMatchEulerDiscreteScheduler",
+    "params": {}
+  },
+  "quantization": {
+    "default": "bf16",
+    "supported": [
+      "none",
+      "bf16",
+      "fp8",
+      "quanto_int8",
+      "auto"
+    ]
+  },
+  "validation": {
+    "min_frames": 8,
+    "min_width": 256,
+    "min_height": 256,
+    "check_nan": true,
+    "check_black_frames": true,
+    "min_std_dev": 0.005,
+    "max_std_dev": 0.45,
+    "min_fps": 16,
+    "max_fps": 16
+  },
+  "profiles": {
+    "fast": {
+      "label": "Fast",
+      "description": "Quick preview generation",
+      "steps": 15,
+      "cfg_scale": 3.5,
+      "width": 640,
+      "height": 352,
+      "num_frames": 33,
+      "fps": 16,
+      "scheduler": "FlowMatch",
+      "quantization": "bf16"
+    },
+    "balanced": {
+      "label": "Balanced",
+      "description": "Optimal quality and speed balance",
+      "steps": 20,
+      "cfg_scale": 4,
+      "width": 640,
+      "height": 352,
+      "num_frames": 49,
+      "fps": 16,
+      "scheduler": "FlowMatch",
+      "quantization": "bf16"
+    },
+    "detailed": {
+      "label": "Detailed",
+      "description": "High detail & maximum fidelity",
+      "steps": 30,
+      "cfg_scale": 5,
+      "width": 832,
+      "height": 480,
+      "num_frames": 81,
+      "fps": 16,
+      "scheduler": "FlowMatch",
+      "quantization": "bf16"
+    }
+  }
+}

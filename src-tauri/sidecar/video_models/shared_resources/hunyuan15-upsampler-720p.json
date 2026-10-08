@@ -1,0 +1,9 @@
+{
+  "description": "HunyuanVideo 1.5 latent upsampler for the 480p -> 720p super-resolution stage (official Tencent weights).",
+  "provider": "huggingface",
+  "repo": "tencent/HunyuanVideo-1.5",
+  "revision": "9b49404b3f5df2a8f0b31df27a0c7ab872e7b038",
+  "local_dir": "hunyuan15-upsampler-720p",
+  "files": ["upsampler/720p_sr_distilled/diffusion_pytorch_model.safetensors"],
+  "size_gb": 0.09
+}

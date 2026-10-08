@@ -1,0 +1,213 @@
+{
+  "identity": {
+    "id": "ltx-video-ultra",
+    "display_name": "LTX-Video 13B Distilled",
+    "family": "ltx-video",
+    "variant": "13B-fp8-0.9.8-distilled",
+    "status": "disabled",
+    "disabled_reason": "No files defined."
+  },
+  "capabilities": {
+    "text_to_video": true,
+    "image_to_video": true,
+    "video_to_video": false,
+    "audio_generation": false,
+    "lora": false,
+    "controlnet": false,
+    "max_prompt_tokens": 128
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "Lightricks/LTX-Video",
+    "revision": "main",
+    "download_method": "hf_hub",
+    "estimated_download_size_gb": 16,
+    "required_disk_space_gb": 17.5,
+    "shared_resources": "ltx-shared-v1",
+    "files": {
+      "required": [
+        "ltxv-13b-0.9.8-distilled-fp8.safetensors"
+      ],
+      "optional": [],
+      "generated": []
+    }
+  },
+  "runtime": {
+    "backend": "diffusers",
+    "pipeline_class": "LTXPipeline",
+    "load_mode": "from_single_file",
+    "transformer_class": "LTXVideoTransformer3DModel",
+    "transformer_file": "ltxv-13b-0.9.8-distilled-fp8.safetensors",
+    "dtype": "float8_e4m3fn",
+    "requires_model_index": true,
+    "expected_model_index_class": "LTXPipeline",
+    "min_diffusers_version": "0.33.0",
+    "load_kwargs": {},
+    "alignment_policy": "validate downloaded model_index.json _class_name against runtime.pipeline_class before generation"
+  },
+  "optimization": {
+    "offload_strategy": "sequential",
+    "vae_tiling": true,
+    "vae_slicing": true,
+    "attention_slicing": false,
+    "torch_compile": false,
+    "quantization": "fp8",
+    "notes": null
+  },
+  "hardware": {
+    "minimum_vram_gb": 16,
+    "recommended_vram_gb": 16,
+    "recommended_ram_gb": 32,
+    "recommended_gpu": "16GB+ VRAM"
+  },
+  "generation": {
+    "defaults": {
+      "steps": 8,
+      "cfg_scale": 1,
+      "width": 1280,
+      "height": 720,
+      "num_frames": 121,
+      "fps": 30,
+      "decode_timestep": 0.05,
+      "decode_noise_scale": 0.025,
+      "guidance_rescale": 0,
+      "output_type": "pil"
+    },
+    "limits": {
+      "steps": {
+        "default": 8,
+        "min": 4,
+        "max": 12,
+        "step": 2
+      },
+      "cfg_scale": {
+        "default": 1,
+        "min": 1,
+        "max": 1,
+        "step": 0.5
+      },
+      "width": {
+        "default": 1280,
+        "min": 512,
+        "max": 1280,
+        "step": 32
+      },
+      "height": {
+        "default": 720,
+        "min": 320,
+        "max": 720,
+        "step": 32
+      },
+      "num_frames": {
+        "default": 121,
+        "min": 9,
+        "max": 161,
+        "step": 8
+      },
+      "fps": {
+        "default": 30,
+        "min": 16,
+        "max": 30,
+        "step": 1
+      }
+    },
+    "arg_aliases": {
+      "skip_block_list": "spatio_temporal_guidance_blocks"
+    }
+  },
+  "ui": {
+    "tier": "ultra",
+    "featured": false,
+    "recommended": false,
+    "description": "Maximum-quality distilled 13B model. Currently has an outstanding, unresolved silent-crash issue during model loading on this app's hardware — do not feature until fixed.",
+    "pros": [
+      "Highest quality tier available in this family"
+    ],
+    "cons": [
+      "Unresolved crash during loading — flagged as a known issue, not production-ready"
+    ],
+    "tags": [
+      "text-to-video",
+      "image-to-video",
+      "maximum-quality"
+    ],
+    "thumbnail": null,
+    "accent_color": "#a855f7"
+  },
+  "documentation": {
+    "huggingface": "https://huggingface.co/Lightricks/LTX-Video",
+    "diffusers_docs": null,
+    "github": null,
+    "paper": null
+  },
+  "verification": {
+    "status": "unverified",
+    "verified_on": null,
+    "verified_sources": [],
+    "notes": "Carries an open bug from prior development: silent crash during model loading, not yet diagnosed. Do not mark as verified or featured until this is resolved and re-tested."
+  },
+  "scheduler": {
+    "default": "Euler",
+    "class_name": null,
+    "params": {}
+  },
+  "quantization": {
+    "default": "bf16",
+    "supported": [
+      "none",
+      "fp16",
+      "bf16",
+      "fp8",
+      "auto"
+    ]
+  },
+  "validation": {
+    "min_frames": 8,
+    "min_width": 256,
+    "min_height": 256,
+    "check_nan": true,
+    "check_black_frames": true,
+    "min_std_dev": 0.005,
+    "max_std_dev": 0.45,
+    "min_fps": 30,
+    "max_fps": 30
+  },
+  "profiles": {
+    "fast": {
+      "label": "Fast",
+      "description": "Fast draft at 768x512",
+      "steps": 4,
+      "cfg_scale": 1,
+      "width": 768,
+      "height": 512,
+      "num_frames": 65,
+      "fps": 24,
+      "scheduler": "Euler",
+      "quantization": "fp8"
+    },
+    "balanced": {
+      "label": "Balanced",
+      "description": "Ultra HD cinematic preview",
+      "steps": 8,
+      "cfg_scale": 1,
+      "width": 896,
+      "height": 576,
+      "num_frames": 97,
+      "fps": 24,
+      "scheduler": "Euler",
+      "quantization": "fp8"
+    },
+    "detailed": {
+      "label": "Detailed",
+      "description": "Maximum 1024x576 high fidelity",
+      "steps": 12,
+      "cfg_scale": 1,
+      "width": 1024,
+      "height": 576,
+      "num_frames": 161,
+      "fps": 24,
+      "scheduler": "Euler",
+      "quantization": "fp8"
+    }
+  }
+}

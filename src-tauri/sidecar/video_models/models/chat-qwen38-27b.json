@@ -1,0 +1,69 @@
+{
+  "identity": {
+    "id": "chat-qwen38-27b",
+    "kind": "chat",
+    "display_name": "Qwen3.8 27B",
+    "family": "qwen3.8",
+    "variant": "Q4_K_M, with vision",
+    "status": "active"
+  },
+  "capabilities": {
+    "text_to_video": false,
+    "chat": true,
+    "vision": true,
+    "tool_calling": true
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "unsloth/Qwen3.8-27B-GGUF",
+    "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+    "license": "Apache-2.0",
+    "estimated_download_size_gb": 17.4,
+    "required_disk_space_gb": 18,
+    "shared_resources": [
+      "llama-cpp"
+    ],
+    "files": {
+      "required": [
+        "Qwen3.8-27B-UD-Q4_K_M.gguf",
+        "mmproj-F16.gguf"
+      ]
+    }
+  },
+  "runtime": {
+    "runner": "llama",
+    "engine": "shared:llama-cpp/bin",
+    "model_root": "model:chat-qwen38-27b",
+    "model_file": "Qwen3.8-27B-UD-Q4_K_M.gguf",
+    "mmproj_file": "mmproj-F16.gguf",
+    "context": 32768,
+    "requires_model_index": false
+  },
+  "hardware": {
+    "minimum_vram_gb": 16,
+    "recommended_vram_gb": 24,
+    "minimum_ram_gb": 32,
+    "recommended_ram_gb": 64
+  },
+  "ui": {
+    "tier": "chat",
+    "quality_rank": 4,
+    "recommended": false,
+    "speed_label": "Medium",
+    "description": "The strongest agent here, for high-end graphics cards (16-24 GB). Best at long scripts, complex plans and careful prompt writing.",
+    "pros": [
+      "Best quality",
+      "Understands images"
+    ],
+    "cons": [
+      "17 GB download",
+      "Needs a 16 GB+ graphics card"
+    ],
+    "tags": [
+      "agent",
+      "chat",
+      "vision"
+    ],
+    "accent_color": "#5b8cff"
+  }
+}

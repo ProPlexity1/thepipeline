@@ -1,0 +1,189 @@
+{
+  "identity": {
+    "id": "minimax-h3-fast",
+    "display_name": "MiniMax H3 Fast (video + sound)",
+    "family": "minimax-h3",
+    "variant": "FastVideo FastH3 8-step v2, pruned int8",
+    "status": "active"
+  },
+  "capabilities": {
+    "text_to_video": true,
+    "image_to_video": true,
+    "video_to_video": false,
+    "audio_generation": true,
+    "lora": false,
+    "controlnet": false,
+    "max_prompt_tokens": 2048
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "FastVideo/FastVideo-FastH3-Comfy",
+    "revision": "ec1e3aa374a91c57b0b94a1623b7e657c0498cf2",
+    "license": "MiniMax H3 Community License",
+    "estimated_download_size_gb": 41.3,
+    "required_disk_space_gb": 44,
+    "shared_resources": [
+      "comfyui-engine"
+    ],
+    "files": {
+      "required": [
+        "diffusion_models/fastvideo_fasth3_8step_v2_pruned_int8_convrot.safetensors",
+        "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "vae/minimax_h3_video_vae_int8_convrot.safetensors",
+        "vae/minimax_h3_audio_vae_fp32.safetensors"
+      ]
+    }
+  },
+  "license_gate": {
+    "name": "MiniMax H3 Community License",
+    "url": "https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE",
+    "summary": [
+      "Not licensed for use in the EU, UK, South Korea or the USA.",
+      "Free for personal and commercial use below US$20M yearly revenue.",
+      "No misinformation, military use, or using it to train competing models.",
+      "Videos should be labelled as AI-generated."
+    ]
+  },
+  "runtime": {
+    "runner": "comfy_minimax_h3",
+    "engine": "shared:comfyui-engine/ComfyUI",
+    "model_root": "model:minimax-h3-fast",
+    "files": {
+      "unet": "fastvideo_fasth3_8step_v2_pruned_int8_convrot.safetensors",
+      "text_encoder": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "video_vae": "minimax_h3_video_vae_int8_convrot.safetensors",
+      "audio_vae": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "sampler": "res_multistep",
+    "scheduler": "simple",
+    "shift_video": 10.0,
+    "shift_audio": 3.0,
+    "sparse_attention": {
+      "method": "vsa",
+      "keep_percent": 10.0,
+      "start_percent": 0.2
+    },
+    "engine_args": [
+      "--fast-disk",
+      "--disable-pinned-memory"
+    ],
+    "requires_model_index": false
+  },
+  "hardware": {
+    "minimum_vram_gb": 8,
+    "recommended_vram_gb": 16,
+    "minimum_ram_gb": 16,
+    "recommended_ram_gb": 32,
+    "notes": "Weights stream from disk; an NVMe SSD makes a large difference. Text encoder is NVFP4, fastest on RTX 50-series."
+  },
+  "generation": {
+    "defaults": {
+      "steps": 8,
+      "cfg_scale": 1,
+      "width": 864,
+      "height": 480,
+      "num_frames": 124,
+      "fps": 24
+    },
+    "limits": {
+      "steps": {
+        "default": 8,
+        "min": 8,
+        "max": 8,
+        "step": 1
+      },
+      "cfg_scale": {
+        "default": 1,
+        "min": 1,
+        "max": 1,
+        "step": 1
+      },
+      "width": {
+        "default": 864,
+        "min": 512,
+        "max": 1344,
+        "step": 32
+      },
+      "height": {
+        "default": 480,
+        "min": 288,
+        "max": 768,
+        "step": 32
+      },
+      "num_frames": {
+        "default": 124,
+        "min": 124,
+        "max": 362,
+        "step": 17
+      },
+      "fps": {
+        "default": 24,
+        "min": 24,
+        "max": 24,
+        "step": 1
+      }
+    },
+    "hidden_controls": [
+      "steps",
+      "cfg_scale",
+      "fps",
+      "negative_prompt"
+    ]
+  },
+  "profiles": {
+    "fast": {
+      "label": "Fast",
+      "steps": 8,
+      "cfg_scale": 1,
+      "width": 608,
+      "height": 352,
+      "num_frames": 124,
+      "fps": 24
+    },
+    "balanced": {
+      "label": "Balanced",
+      "steps": 8,
+      "cfg_scale": 1,
+      "width": 864,
+      "height": 480,
+      "num_frames": 124,
+      "fps": 24
+    },
+    "detailed": {
+      "label": "Best",
+      "steps": 8,
+      "cfg_scale": 1,
+      "width": 1024,
+      "height": 576,
+      "num_frames": 124,
+      "fps": 24
+    }
+  },
+  "ui": {
+    "tier": "ultra",
+    "featured": true,
+    "recommended": false,
+    "speed_label": "About 4-5 min per 5s clip on 8GB (Fast)",
+    "description": "MiniMax H3, distilled to 8 steps by FastVideo. The highest quality here, and it generates a matching soundtrack with the video. Streams a 33B model from disk, so it is slow on 8GB cards.",
+    "pros": [
+      "Video with synchronized sound",
+      "Best motion and prompt following",
+      "Understands long, detailed prompts"
+    ],
+    "cons": [
+      "41 GB download",
+      "Several minutes per clip on 8GB cards",
+      "Region-restricted licence"
+    ],
+    "tags": [
+      "text-to-video",
+      "audio",
+      "highest-quality"
+    ],
+    "accent_color": "#a855f7"
+  },
+  "documentation": {
+    "huggingface": "https://huggingface.co/FastVideo/FastVideo-FastH3-Comfy",
+    "base_model": "https://huggingface.co/MiniMaxAI/MiniMax-H3"
+  }
+}

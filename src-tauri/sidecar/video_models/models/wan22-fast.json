@@ -1,0 +1,164 @@
+{
+  "identity": {
+    "id": "wan22-fast",
+    "display_name": "Wan 2.2 Fast",
+    "family": "wan",
+    "variant": "TI2V-5B FastWan (3-step DMD)",
+    "status": "active"
+  },
+  "capabilities": {
+    "text_to_video": true,
+    "image_to_video": true,
+    "video_to_video": false,
+    "audio_generation": false,
+    "lora": false,
+    "controlnet": false,
+    "max_prompt_tokens": 512
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers",
+    "revision": "3e187042a324f6f5fb68fd22110a78725253de8f",
+    "license": "Apache-2.0",
+    "estimated_download_size_gb": 24.2,
+    "required_disk_space_gb": 26,
+    "shared_resources": "wan22-ti2v-shared",
+    "files": {
+      "required": [
+        "transformer/config.json",
+        "transformer/diffusion_pytorch_model.safetensors"
+      ]
+    }
+  },
+  "runtime": {
+    "runner": "wan_dmd",
+    "components": {
+      "tokenizer": "shared:wan22-ti2v-shared/tokenizer",
+      "text_encoder": "shared:wan22-ti2v-shared/text_encoder",
+      "vae": "shared:wan22-ti2v-shared/vae",
+      "transformer": "model:wan22-fast/transformer"
+    },
+    "dmd_timesteps": [
+      1000,
+      757,
+      522
+    ],
+    "requires_model_index": false,
+    "vae_dtype": "bfloat16"
+  },
+  "hardware": {
+    "minimum_vram_gb": 8,
+    "recommended_vram_gb": 12,
+    "minimum_ram_gb": 16,
+    "recommended_ram_gb": 16
+  },
+  "generation": {
+    "defaults": {
+      "steps": 3,
+      "cfg_scale": 1,
+      "width": 1280,
+      "height": 704,
+      "num_frames": 121,
+      "fps": 24
+    },
+    "limits": {
+      "steps": {
+        "default": 3,
+        "min": 3,
+        "max": 3,
+        "step": 1
+      },
+      "cfg_scale": {
+        "default": 1,
+        "min": 1,
+        "max": 1,
+        "step": 1
+      },
+      "width": {
+        "default": 1280,
+        "min": 512,
+        "max": 1280,
+        "step": 32
+      },
+      "height": {
+        "default": 704,
+        "min": 320,
+        "max": 704,
+        "step": 32
+      },
+      "num_frames": {
+        "default": 121,
+        "min": 41,
+        "max": 121,
+        "step": 4
+      },
+      "fps": {
+        "default": 24,
+        "min": 24,
+        "max": 24,
+        "step": 1
+      }
+    },
+    "hidden_controls": [
+      "steps",
+      "cfg_scale",
+      "fps",
+      "negative_prompt"
+    ]
+  },
+  "profiles": {
+    "fast": {
+      "label": "Fast",
+      "steps": 3,
+      "cfg_scale": 1,
+      "width": 832,
+      "height": 480,
+      "num_frames": 81,
+      "fps": 24
+    },
+    "balanced": {
+      "label": "Balanced",
+      "steps": 3,
+      "cfg_scale": 1,
+      "width": 1280,
+      "height": 704,
+      "num_frames": 81,
+      "fps": 24
+    },
+    "detailed": {
+      "label": "Best",
+      "steps": 3,
+      "cfg_scale": 1,
+      "width": 1280,
+      "height": 704,
+      "num_frames": 121,
+      "fps": 24
+    }
+  },
+  "ui": {
+    "tier": "standard",
+    "featured": true,
+    "recommended": true,
+    "speed_label": "About 1.5 min (480p) to 3 min (720p) per clip",
+    "description": "Wan 2.2 (5B) distilled to 3 steps. Sharp 720p clips up to 5 seconds, quick enough to iterate on 8GB GPUs.",
+    "pros": [
+      "720p output",
+      "Only 3 denoising steps",
+      "Apache 2.0 licence"
+    ],
+    "cons": [
+      "No audio",
+      "Text-to-video only for now"
+    ],
+    "tags": [
+      "text-to-video",
+      "fast",
+      "720p"
+    ],
+    "accent_color": "#10b981"
+  },
+  "documentation": {
+    "huggingface": "https://huggingface.co/FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers",
+    "base_model": "https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B-Diffusers"
+  }
+}

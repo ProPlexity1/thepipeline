@@ -1,0 +1,58 @@
+{
+  "identity": {
+    "id": "depth-anything-v2-small",
+    "kind": "tool",
+    "display_name": "Photo motion (Depth Anything V2 Small)",
+    "family": "depth-anything",
+    "variant": "24.8M, Apache-2.0",
+    "status": "active"
+  },
+  "capabilities": {
+    "text_to_video": false,
+    "depth": true
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "depth-anything/Depth-Anything-V2-Small-hf",
+    "revision": "5426e4f0f36572d16453bbda7a8389317b1bef99",
+    "license": "Apache-2.0",
+    "estimated_download_size_gb": 0.1,
+    "required_disk_space_gb": 1,
+    "files": {
+      "required": [
+        "model.safetensors",
+        "config.json",
+        "preprocessor_config.json"
+      ]
+    }
+  },
+  "runtime": {
+    "runner": "photo_motion",
+    "model_root": "model:depth-anything-v2-small",
+    "requires_model_index": false
+  },
+  "hardware": {
+    "minimum_vram_gb": 0,
+    "recommended_vram_gb": 2,
+    "minimum_ram_gb": 4,
+    "recommended_ram_gb": 8
+  },
+  "ui": {
+    "tier": "tool",
+    "quality_rank": 1,
+    "recommended": true,
+    "speed_label": "Seconds per shot",
+    "description": "Turns a still photo into a smooth cinematic camera move with real 3D parallax (push-in, pan, orbit). Full photo sharpness, seconds per shot.",
+    "pros": [
+      "Very fast",
+      "Keeps the photo's full detail"
+    ],
+    "cons": [
+      "Camera moves only; people don't move"
+    ],
+    "tags": [
+      "motion"
+    ],
+    "accent_color": "#22c3dd"
+  }
+}

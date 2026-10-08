@@ -1,0 +1,69 @@
+{
+  "identity": {
+    "id": "chat-qwen35-4b",
+    "kind": "chat",
+    "display_name": "Qwen3.5 4B",
+    "family": "qwen3.5",
+    "variant": "Q4_K_M, with vision",
+    "status": "active"
+  },
+  "capabilities": {
+    "text_to_video": false,
+    "chat": true,
+    "vision": true,
+    "tool_calling": true
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "unsloth/Qwen3.5-4B-GGUF",
+    "revision": "e87f176479d0855a907a41277aca2f8ee7a09523",
+    "license": "Apache-2.0",
+    "estimated_download_size_gb": 3.41,
+    "required_disk_space_gb": 4,
+    "shared_resources": [
+      "llama-cpp"
+    ],
+    "files": {
+      "required": [
+        "Qwen3.5-4B-Q4_K_M.gguf",
+        "mmproj-F16.gguf"
+      ]
+    }
+  },
+  "runtime": {
+    "runner": "llama",
+    "engine": "shared:llama-cpp/bin",
+    "model_root": "model:chat-qwen35-4b",
+    "model_file": "Qwen3.5-4B-Q4_K_M.gguf",
+    "mmproj_file": "mmproj-F16.gguf",
+    "context": 32768,
+    "requires_model_index": false
+  },
+  "hardware": {
+    "minimum_vram_gb": 3,
+    "recommended_vram_gb": 6,
+    "minimum_ram_gb": 8,
+    "recommended_ram_gb": 16
+  },
+  "ui": {
+    "tier": "chat",
+    "quality_rank": 1,
+    "recommended": false,
+    "speed_label": "Fast",
+    "description": "A small, quick assistant. Plans, writes scripts and prompts, reads images. Best for PCs with 4-6 GB of graphics memory.",
+    "pros": [
+      "Fast even on modest PCs",
+      "Understands images",
+      "Apache 2.0"
+    ],
+    "cons": [
+      "Less creative than larger models"
+    ],
+    "tags": [
+      "agent",
+      "chat",
+      "vision"
+    ],
+    "accent_color": "#5b8cff"
+  }
+}

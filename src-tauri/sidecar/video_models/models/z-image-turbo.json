@@ -1,0 +1,127 @@
+{
+  "identity": {
+    "id": "z-image-turbo",
+    "kind": "image",
+    "display_name": "Z-Image Turbo",
+    "family": "z-image",
+    "variant": "6B, 8 steps, int8",
+    "status": "active"
+  },
+  "capabilities": {
+    "text_to_video": false,
+    "text_to_image": true,
+    "image_editing": false
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "Comfy-Org/z_image_turbo",
+    "revision": "6fc90a3b1b653e935a0d175e260736de25b84df5",
+    "license": "Apache-2.0",
+    "estimated_download_size_gb": 12.2,
+    "required_disk_space_gb": 14,
+    "shared_resources": [
+      "comfyui-engine"
+    ],
+    "files": {
+      "required": [
+        "split_files/diffusion_models/z_image_turbo_int8_convrot.safetensors",
+        "split_files/text_encoders/qwen_3_4b_fp8_mixed.safetensors",
+        "split_files/vae/ae.safetensors"
+      ]
+    }
+  },
+  "runtime": {
+    "runner": "comfy_image",
+    "engine": "shared:comfyui-engine/ComfyUI",
+    "model_root": "model:z-image-turbo/split_files",
+    "graph": "z_image",
+    "files": {
+      "unet": "z_image_turbo_int8_convrot.safetensors",
+      "text_encoder": "qwen_3_4b_fp8_mixed.safetensors",
+      "vae": "ae.safetensors"
+    },
+    "shift": 3.0,
+    "sampler": "res_multistep",
+    "scheduler": "simple",
+    "engine_args": [
+      "--fast-disk",
+      "--disable-pinned-memory"
+    ],
+    "requires_model_index": false
+  },
+  "hardware": {
+    "minimum_vram_gb": 6,
+    "recommended_vram_gb": 8,
+    "minimum_ram_gb": 16,
+    "recommended_ram_gb": 16
+  },
+  "generation": {
+    "defaults": {
+      "steps": 8,
+      "width": 1344,
+      "height": 768
+    },
+    "limits": {
+      "steps": {
+        "default": 8,
+        "min": 4,
+        "max": 12,
+        "step": 1
+      },
+      "width": {
+        "default": 1344,
+        "min": 512,
+        "max": 2048,
+        "step": 64
+      },
+      "height": {
+        "default": 768,
+        "min": 512,
+        "max": 2048,
+        "step": 64
+      }
+    }
+  },
+  "profiles": {
+    "fast": {
+      "label": "Fast",
+      "steps": 6,
+      "width": 1024,
+      "height": 576
+    },
+    "balanced": {
+      "label": "Balanced",
+      "steps": 8,
+      "width": 1344,
+      "height": 768
+    },
+    "detailed": {
+      "label": "Best (2K)",
+      "steps": 8,
+      "width": 1920,
+      "height": 1088
+    }
+  },
+  "ui": {
+    "tier": "image",
+    "quality_rank": 2,
+    "recommended": true,
+    "speed_label": "Seconds per image",
+    "description": "Tongyi's Z-Image Turbo: photorealistic images in 8 steps, strong at people, products and readable text. Makes the keyframes and character designs that videos are animated from.",
+    "pros": [
+      "Photorealistic",
+      "Fast",
+      "Renders text well",
+      "Apache 2.0"
+    ],
+    "cons": [
+      "12 GB download"
+    ],
+    "tags": [
+      "text-to-image",
+      "realistic",
+      "keyframes"
+    ],
+    "accent_color": "#f5b03c"
+  }
+}

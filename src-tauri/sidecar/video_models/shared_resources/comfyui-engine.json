@@ -1,0 +1,18 @@
+{
+  "description": "ComfyUI source at a pinned commit. Runs headless on a private loopback port, only while a ComfyUI-backed model is generating.",
+  "provider": "github",
+  "local_dir": "comfyui-engine",
+  "files": [],
+  "extra_sources": [
+    {
+      "provider": "github_archive",
+      "repo": "comfyanonymous/ComfyUI",
+      "revision": "2d6b73283af2447bdd065ece4090b8c6b1784544",
+      "extract_path": "",
+      "target_subdir": "ComfyUI",
+      "marker_file": "main.py",
+      "description": "ComfyUI engine (GPL-3.0)"
+    }
+  ],
+  "size_gb": 0.1
+}

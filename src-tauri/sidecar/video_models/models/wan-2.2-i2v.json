@@ -1,0 +1,231 @@
+{
+  "identity": {
+    "id": "wan-2.2-i2v",
+    "display_name": "Wan 2.2 Image-to-Video",
+    "family": "wan",
+    "variant": "14B-FP8",
+    "status": "disabled",
+    "disabled_reason": "14B MoE; does not fit 8GB VRAM / 16GB RAM."
+  },
+  "capabilities": {
+    "text_to_video": true,
+    "image_to_video": true,
+    "video_to_video": true,
+    "audio_generation": false,
+    "lora": false,
+    "controlnet": false,
+    "max_prompt_tokens": 512
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "Wan-AI/Wan2.2-I2V-A14B",
+    "revision": "main",
+    "download_method": "hf_hub",
+    "estimated_download_size_gb": 17.5,
+    "required_disk_space_gb": 19,
+    "shared_resources": null,
+    "files": {
+      "required": [
+        "model_index.json",
+        "scheduler/scheduler_config.json",
+        "text_encoder/config.json",
+        "text_encoder/model-00001-of-00004.safetensors",
+        "text_encoder/model-00002-of-00004.safetensors",
+        "text_encoder/model-00003-of-00004.safetensors",
+        "text_encoder/model-00004-of-00004.safetensors",
+        "text_encoder/model.safetensors.index.json",
+        "tokenizer/tokenizer.json",
+        "tokenizer/tokenizer_config.json",
+        "tokenizer/special_tokens_map.json",
+        "transformer/config.json",
+        "transformer/diffusion_pytorch_model-00001-of-00002.safetensors",
+        "transformer/diffusion_pytorch_model-00002-of-00002.safetensors",
+        "transformer/diffusion_pytorch_model.safetensors.index.json",
+        "vae/config.json",
+        "vae/diffusion_pytorch_model.safetensors"
+      ],
+      "optional": [],
+      "generated": []
+    }
+  },
+  "runtime": {
+    "backend": "diffusers",
+    "pipeline_class": "WanPipeline",
+    "load_mode": "from_pretrained",
+    "transformer_class": null,
+    "transformer_file": null,
+    "dtype": "float8_e4m3fn",
+    "requires_model_index": true,
+    "expected_model_index_class": "WanPipeline",
+    "min_diffusers_version": "0.34.0",
+    "load_kwargs": {},
+    "alignment_policy": "validate downloaded model_index.json _class_name against runtime.pipeline_class before generation"
+  },
+  "optimization": {
+    "offload_strategy": "sequential",
+    "vae_tiling": true,
+    "vae_slicing": true,
+    "attention_slicing": false,
+    "torch_compile": false,
+    "quantization": "fp8",
+    "notes": "14B model with FP8 quantization. ~4x smaller footprint than bfloat16. Forces sequential CPU offload on consumer GPUs. ZeroGPU-optimized."
+  },
+  "hardware": {
+    "minimum_vram_gb": 8,
+    "recommended_vram_gb": 12,
+    "recommended_ram_gb": 24,
+    "recommended_gpu": "8GB+ VRAM (12GB+ recommended)"
+  },
+  "generation": {
+    "defaults": {
+      "steps": 6,
+      "cfg_scale": 4,
+      "width": 640,
+      "height": 480,
+      "num_frames": 145,
+      "fps": 24
+    },
+    "limits": {
+      "steps": {
+        "default": 6,
+        "min": 4,
+        "max": 12,
+        "step": 1
+      },
+      "cfg_scale": {
+        "default": 4,
+        "min": 2,
+        "max": 8,
+        "step": 0.5
+      },
+      "width": {
+        "default": 640,
+        "min": 480,
+        "max": 1280,
+        "step": 16
+      },
+      "height": {
+        "default": 480,
+        "min": 320,
+        "max": 720,
+        "step": 16
+      },
+      "num_frames": {
+        "default": 145,
+        "min": 49,
+        "max": 241,
+        "step": 8
+      },
+      "fps": {
+        "default": 24,
+        "min": 16,
+        "max": 30,
+        "step": 1
+      }
+    }
+  },
+  "ui": {
+    "tier": "pro",
+    "featured": true,
+    "recommended": true,
+    "description": "14B model with FP8 quantization. 2-3x faster than 1.3B despite larger size. Supports image-to-video, video-to-video, and up to 20-second generation.",
+    "pros": [
+      "Much faster than 1.3B (4-8 steps vs 20)",
+      "FP8 quantization = compact footprint",
+      "Image-to-video and video-to-video support",
+      "Can generate up to 20 seconds (145 frames @ 24fps)",
+      "Better quality than lite tier"
+    ],
+    "cons": [
+      "Larger model (17.5GB download)",
+      "Still requires sequential CPU offload on 8GB GPUs"
+    ],
+    "tags": [
+      "text-to-video",
+      "image-to-video",
+      "video-to-video",
+      "quantized",
+      "fast"
+    ],
+    "thumbnail": null,
+    "accent_color": "#f59e0b"
+  },
+  "documentation": {
+    "huggingface": "https://huggingface.co/Wan-AI/Wan2.2-I2V-14B",
+    "diffusers_docs": "https://huggingface.co/docs/diffusers/api/pipelines/wan",
+    "github": "https://github.com/Wan-Video/Wan2.2",
+    "paper": "https://arxiv.org/abs/2501.08511"
+  },
+  "verification": {
+    "status": "unverified",
+    "verified_on": null,
+    "verified_sources": [
+      "https://huggingface.co/Wan-AI/Wan2.2-I2V-14B"
+    ],
+    "notes": "Not yet tested end-to-end in this app. Generation defaults (steps=6, cfg=4.0) copied from official HF model card. FP8 dtype assumed from 'compatible with fp8 quantization & AoT compilation' statement."
+  },
+  "scheduler": {
+    "default": "FlowMatch",
+    "class_name": "FlowMatchEulerDiscreteScheduler",
+    "params": {}
+  },
+  "quantization": {
+    "default": "fp8",
+    "supported": [
+      "none",
+      "fp16",
+      "bf16",
+      "fp8",
+      "auto"
+    ]
+  },
+  "validation": {
+    "min_frames": 8,
+    "min_width": 256,
+    "min_height": 256,
+    "check_nan": true,
+    "check_black_frames": true,
+    "min_std_dev": 0.005,
+    "max_std_dev": 0.45,
+    "min_fps": 24,
+    "max_fps": 24
+  },
+  "profiles": {
+    "fast": {
+      "label": "Fast",
+      "description": "Quick motion preview",
+      "steps": 20,
+      "cfg_scale": 4,
+      "width": 640,
+      "height": 360,
+      "num_frames": 49,
+      "fps": 16,
+      "scheduler": "FlowMatch",
+      "quantization": "fp8"
+    },
+    "balanced": {
+      "label": "Balanced",
+      "description": "Recommended quality settings",
+      "steps": 30,
+      "cfg_scale": 5,
+      "width": 854,
+      "height": 480,
+      "num_frames": 81,
+      "fps": 16,
+      "scheduler": "FlowMatch",
+      "quantization": "fp8"
+    },
+    "detailed": {
+      "label": "Detailed",
+      "description": "Ultra high definition render",
+      "steps": 40,
+      "cfg_scale": 6,
+      "width": 1280,
+      "height": 720,
+      "num_frames": 121,
+      "fps": 16,
+      "scheduler": "FlowMatch",
+      "quantization": "fp8"
+    }
+  }
+}

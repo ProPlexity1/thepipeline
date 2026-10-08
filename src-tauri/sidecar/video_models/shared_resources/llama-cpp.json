@@ -1,0 +1,22 @@
+{
+  "description": "llama.cpp server (prebuilt CUDA 13 build, pinned release b11349). Runs the chat agent on a private loopback port with an API key, only while the agent is awake.",
+  "provider": "github",
+  "local_dir": "llama-cpp",
+  "files": [],
+  "extra_sources": [
+    {
+      "provider": "github_release",
+      "repo": "ggml-org/llama.cpp",
+      "tag": "b11349",
+      "target_subdir": "bin",
+      "description": "llama.cpp (MIT)",
+      "assets": [
+        {"name": "llama-b11349-bin-win-cuda-13.4-x64.zip", "size": 152792767,
+         "sha256": "06f2efb5f54d845002972928fa879448491799a556741c185a1974b491d8b4f0"},
+        {"name": "cudart-llama-bin-win-cuda-13.4-x64.zip", "size": 423535356,
+         "sha256": "738f8c251ac22b70c3ae6f83a10cf222725df0395246a2cf58f32bdb85fbe668"}
+      ]
+    }
+  ],
+  "size_gb": 0.58
+}

@@ -1,0 +1,95 @@
+{
+  "identity": {
+    "id": "seedvr2-enhance",
+    "kind": "enhancer",
+    "display_name": "SeedVR2 Enhance",
+    "family": "seedvr2",
+    "variant": "3B int8, one-step video restoration",
+    "status": "active"
+  },
+  "capabilities": {
+    "text_to_video": false,
+    "video_to_video": true,
+    "upscale": true,
+    "audio_generation": false
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "Comfy-Org/SeedVR2",
+    "revision": "df48879708206a403d2a61acd55578c2e80fd233",
+    "license": "Apache-2.0",
+    "estimated_download_size_gb": 3.96,
+    "required_disk_space_gb": 5,
+    "shared_resources": [
+      "comfyui-engine"
+    ],
+    "files": {
+      "required": [
+        "diffusion_models/seedvr2_3b_int8_convrot.safetensors",
+        "vae/seedvr2_ema_vae_fp16.safetensors"
+      ]
+    }
+  },
+  "runtime": {
+    "runner": "comfy_seedvr2",
+    "engine": "shared:comfyui-engine/ComfyUI",
+    "model_root": "model:seedvr2-enhance",
+    "files": {
+      "unet": "seedvr2_3b_int8_convrot.safetensors",
+      "vae": "seedvr2_ema_vae_fp16.safetensors"
+    },
+    "color_correction": "lab",
+    "temporal_overlap": 2,
+    "engine_args": [
+      "--fast-disk",
+      "--disable-pinned-memory"
+    ],
+    "requires_model_index": false
+  },
+  "enhance": {
+    "targets": [
+      {
+        "id": "1080p",
+        "label": "1080p",
+        "short_edge": 1080
+      },
+      {
+        "id": "1440p",
+        "label": "1440p (slower)",
+        "short_edge": 1440
+      }
+    ],
+    "default_target": "1080p"
+  },
+  "hardware": {
+    "minimum_vram_gb": 8,
+    "recommended_vram_gb": 12,
+    "minimum_ram_gb": 16,
+    "recommended_ram_gb": 32
+  },
+  "ui": {
+    "tier": "enhancer",
+    "recommended": true,
+    "speed_label": "About 10 min per 5s clip at 1080p",
+    "description": "Restores and upscales a finished video in one diffusion step: adds real texture and detail, sharpens edges and cleans artifacts, consistently across frames.",
+    "pros": [
+      "Adds genuine detail, not just sharpening",
+      "Temporally consistent (no flicker)",
+      "Apache 2.0"
+    ],
+    "cons": [
+      "Slow on 8GB cards (about 10 min per clip)",
+      "1440p takes roughly twice as long"
+    ],
+    "tags": [
+      "upscale",
+      "restore",
+      "video-to-video"
+    ],
+    "accent_color": "#22c3dd"
+  },
+  "documentation": {
+    "project": "https://iceclear.github.io/projects/seedvr2/",
+    "huggingface": "https://huggingface.co/ByteDance-Seed/SeedVR2-3B"
+  }
+}

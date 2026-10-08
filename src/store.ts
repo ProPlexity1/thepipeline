@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import type {
   GPUInfo,
   ModelInfo,
@@ -7,82 +8,80 @@ import type {
   SidecarStatus,
   LicenseInfo,
   GenerationStatus,
-  VMRRegistry,
-  VMRModelEntry,
+  OutputItem,
+  ImageItem,
+  AudioItem,
+  StorageReport,
+  SystemInfo,
 } from './types';
-import { invoke } from '@tauri-apps/api/core';
+import { api, post, del, configureApi, healthy, wsUrl, apiReady } from './api';
+import type { RenderPayload } from './components/EditorPanel';
 
-let activeWs: WebSocket | null = null;
-const activeEventSources: Record<string, EventSource> = {};
+/** Agent events from the WebSocket, fanned out to whoever is listening (the Agent page). */
+type AgentListener = (msg: any) => void;
+const agentListeners = new Set<AgentListener>();
+export function onAgentEvent(fn: AgentListener) {
+  agentListeners.add(fn);
+  return () => { agentListeners.delete(fn); };
+}
 
-/**
- * Transform a VMRModelEntry into a ModelInfo (the shape the UI works with).
- * This extracts the relevant fields and derives UI-friendly values.
- */
-function transformVMRToModelInfo(id: string, vmr: VMRModelEntry): ModelInfo {
-  const gen = vmr.generation;
-  const widthDefault = gen.defaults['width'] || 512;
-  const heightDefault = gen.defaults['height'] || 512;
-  const fpsDefault = gen.defaults['fps'] || 24;
-  const numFramesDefault = gen.defaults['num_frames'] || 49;
+export interface Notice {
+  id: number;
+  kind: 'error' | 'success' | 'info';
+  text: string;
+}
 
-  // Derive resolution string from defaults
-  const resolution = `${widthDefault}×${heightDefault}`;
-
-  // Derive duration range from frame limits and fps
-  const frameLimits = gen.limits['num_frames'];
-  const fpsLimits = gen.limits['fps'];
-  let duration = 'Variable';
-  if (frameLimits && fpsLimits) {
-    const minSecs = (frameLimits.min / fpsLimits.default).toFixed(1);
-    const maxSecs = (frameLimits.max / fpsLimits.default).toFixed(1);
-    duration = `${minSecs}-${maxSecs}s`;
-  }
+/** Turn a registry entry into the shape the UI works with. */
+function toModelInfo(id: string, vmr: any): ModelInfo {
+  const gen = vmr.generation || {};
+  const defaults = gen.defaults || {};
+  const limits = gen.limits || {};
+  const ui = vmr.ui || {};
+  const identity = vmr.identity || {};
+  const hardware = vmr.hardware || {};
+  const dist = vmr.distribution || {};
+  const fps = defaults.fps || 24;
+  const frames = limits.num_frames;
 
   return {
-    // Identity
     id,
-    display_name: vmr.identity.display_name,
-    family: vmr.identity.family,
-    variant: vmr.identity.variant,
-
-    // Legacy/alias fields for UI compatibility
-    name: vmr.identity.display_name,
-    minVram: vmr.hardware.minimum_vram_gb,
-    size: vmr.distribution.estimated_download_size_gb,
-    resolution,
-    fps: fpsDefault,
-    duration,
-    huggingFaceRepo: vmr.distribution.repo,
-
-    // UI presentation
-    tier: vmr.ui.tier,
-    description: vmr.ui.description,
-    pros: vmr.ui.pros,
-    cons: vmr.ui.cons,
-    tags: vmr.ui.tags,
-    accent_color: vmr.ui.accent_color,
-
-    // Distribution
-    size_gb: vmr.distribution.estimated_download_size_gb,
-    repo: vmr.distribution.repo,
-
-    // Hardware requirements
-    minimum_vram_gb: vmr.hardware.minimum_vram_gb,
-    recommended_vram_gb: vmr.hardware.recommended_vram_gb,
-    recommended_ram_gb: vmr.hardware.recommended_ram_gb,
-
-    // Capabilities
-    capabilities: vmr.capabilities,
-
-    // Generation settings for sliders & profiles
-    generation_defaults: gen.defaults,
-    generation_limits: gen.limits,
+    display_name: identity.display_name || id,
+    family: identity.family || 'unknown',
+    variant: identity.variant || '',
+    name: identity.display_name || id,
+    minVram: hardware.minimum_vram_gb || 0,
+    size: dist.estimated_download_size_gb || 0,
+    resolution: `${limits.width?.max || defaults.width || 0}×${limits.height?.max || defaults.height || 0}`,
+    fps,
+    duration: frames ? `${(frames.min / fps).toFixed(1)}–${(frames.max / fps).toFixed(1)}s` : 'Variable',
+    huggingFaceRepo: dist.repo || '',
+    tier: ui.tier || 'standard',
+    description: ui.description || '',
+    pros: ui.pros || [],
+    cons: ui.cons || [],
+    tags: ui.tags || [],
+    accent_color: ui.accent_color || '#06b6d4',
+    size_gb: dist.estimated_download_size_gb || 0,
+    repo: dist.repo || '',
+    license: dist.license,
+    license_gate: vmr.license_gate || null,
+    kind: (['enhancer', 'chat', 'image', 'voice'].includes(identity.kind) ? identity.kind : 'video') as ModelInfo['kind'],
+    quality_rank: ui.quality_rank || 0,
+    enhance_targets: vmr.enhance?.targets || [],
+    minimum_vram_gb: hardware.minimum_vram_gb || 0,
+    recommended_vram_gb: hardware.recommended_vram_gb || 0,
+    recommended_ram_gb: hardware.recommended_ram_gb || 0,
+    minimum_ram_gb: hardware.minimum_ram_gb || 0,
+    speed_label: ui.speed_label || '',
+    recommended: !!ui.recommended,
+    hidden_controls: gen.hidden_controls || [],
+    capabilities: vmr.capabilities || {
+      text_to_video: true, image_to_video: false, video_to_video: false, audio_generation: false,
+      lora: false, controlnet: false, max_prompt_tokens: null,
+    },
+    generation_defaults: defaults,
+    generation_limits: limits,
     profiles: vmr.profiles,
-    scheduler: vmr.scheduler,
-    quantization: vmr.quantization,
-
-    // Download state (populated later from /models endpoint)
     downloaded: false,
     downloading: false,
     progress: 0,
@@ -91,473 +90,531 @@ function transformVMRToModelInfo(id: string, vmr: VMRModelEntry): ModelInfo {
     speedMbps: 0,
     eta_seconds: 0,
     etaSeconds: 0,
+    downloadError: null,
   };
 }
 
-/**
- * Fetch VMR from backend and transform into ModelInfo array.
- */
-async function fetchVMRModels(): Promise<ModelInfo[]> {
-  const res = await fetch('http://127.0.0.1:8188/models/config');
-  const data: { metadata: any; models: Record<string, VMRModelEntry> } = await res.json();
-
-  return Object.entries(data.models).map(([id, vmr]) => transformVMRToModelInfo(id, vmr));
+function mergeState(m: ModelInfo, s: any): ModelInfo {
+  if (!s) return m;
+  return {
+    ...m,
+    downloaded: s.downloaded ?? m.downloaded,
+    downloading: s.downloading ?? m.downloading,
+    progress: s.progress ?? m.progress,
+    downloadProgress: s.progress ?? m.downloadProgress,
+    speed_mbps: s.speed_mbps ?? 0,
+    speedMbps: s.speed_mbps ?? 0,
+    eta_seconds: s.eta_seconds ?? 0,
+    etaSeconds: s.eta_seconds ?? 0,
+    downloadedBytes: s.downloaded_bytes ?? m.downloadedBytes,
+    totalBytes: s.total_bytes ?? m.totalBytes,
+    downloadError: s.error !== undefined ? s.error : m.downloadError,
+    downloadStage: s.stage ?? null,
+  };
 }
 
-const connectWebSocket = (
-  setJobs: React.Dispatch<React.SetStateAction<GenerationJob[]>>,
-  setGalleryItems: React.Dispatch<React.SetStateAction<GenerationJob[]>>,
-  setModels: React.Dispatch<React.SetStateAction<ModelInfo[]>>
-) => {
-  if (activeWs) {
-    if (activeWs.readyState === WebSocket.OPEN || activeWs.readyState === WebSocket.CONNECTING) {
-      return;
+const ACTIVE: GenerationStatus[] = ['queued', 'loading_model', 'generating', 'post_processing'];
+export const isActiveJob = (j: GenerationJob) => ACTIVE.includes(j.status);
+
+// Dev only: `npm run dev` in a plain browser has no Tauri shell, so connect to an
+// engine started by hand (VITE_DEV_PORT / VITE_DEV_TOKEN). Stripped from builds.
+const browserDev = import.meta.env.DEV && !('__TAURI_INTERNALS__' in window);
+
+async function tauriInvoke<T>(cmd: string): Promise<T> {
+  if (browserDev) {
+    if (cmd === 'start_sidecar') {
+      return { running: true, port: Number(import.meta.env.VITE_DEV_PORT), token: import.meta.env.VITE_DEV_TOKEN, message: '' } as T;
     }
-    activeWs.close();
+    if (cmd === 'detect_gpu') {
+      const port = Number(import.meta.env.VITE_DEV_PORT);
+      configureApi(port, import.meta.env.VITE_DEV_TOKEN);
+      const sys = await api<SystemInfo>('/system');
+      return { name: sys.gpu_name, vram: Math.round(sys.vram_gb), driver: sys.driver, cuda_version: '?', detected: !!sys.gpu_name } as T;
+    }
+    return undefined as T;
   }
-
-  const ws = new WebSocket('ws://127.0.0.1:8188/ws');
-  activeWs = ws;
-
-  ws.onopen = () => {
-    console.log('[NeuralCut] WebSocket connected');
-  };
-
-  ws.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-
-      if (msg.type === 'download_progress') {
-        const { model_id, progress, speed_mbps, eta_seconds, downloading, downloaded } = msg;
-        setModels((prev) =>
-          prev.map((m) =>
-            m.id === model_id
-              ? {
-                  ...m,
-                  progress,
-                  downloadProgress: progress,
-                  speed_mbps,
-                  speedMbps: speed_mbps,
-                  eta_seconds,
-                  etaSeconds: eta_seconds,
-                  downloading,
-                  downloaded,
-                }
-              : m
-          )
-        );
-      }
-
-      if (msg.type === 'job_status') {
-        const { job_id, status, progress, eta, outputPath, error } = msg;
-        setJobs((prev) =>
-          prev.map((j) => {
-            if (j.id === job_id) {
-              const updatedJob = {
-                ...j,
-                status: status as GenerationStatus,
-                progress,
-                eta,
-                outputPath: outputPath || undefined,
-                error: error || undefined,
-                endTime:
-                  status === 'done' || status === 'error'
-                    ? Date.now()
-                    : j.endTime,
-              };
-              if (status === 'done' && j.status !== 'done') {
-                setGalleryItems((gal) => {
-                  if (gal.some((g) => g.id === job_id)) return gal;
-                  return [updatedJob, ...gal];
-                });
-              }
-              return updatedJob;
-            }
-            return j;
-          })
-        );
-      }
-    } catch (e) {
-      console.error('[NeuralCut] Error parsing WebSocket message:', e);
-    }
-  };
-
-  ws.onclose = () => {
-    console.log('[NeuralCut] WebSocket closed, retrying in 3s...');
-    activeWs = null;
-    setTimeout(() => connectWebSocket(setJobs, setGalleryItems, setModels), 3000);
-  };
-
-  ws.onerror = (err) => {
-    console.error('[NeuralCut] WebSocket error:', err);
-    ws.close();
-  };
-};
+  return invoke<T>(cmd);
+}
 
 export function useAppStore() {
   const [view, setView] = useState<AppView>('setup');
   const [setupStep, setSetupStep] = useState(0);
   const [gpu, setGpu] = useState<GPUInfo | null>(null);
+  const [system, setSystem] = useState<SystemInfo | null>(null);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [jobs, setJobs] = useState<GenerationJob[]>([]);
+  const [outputs, setOutputs] = useState<OutputItem[]>([]);
+  const [storage, setStorage] = useState<StorageReport | null>(null);
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
+  const [notices, setNotices] = useState<Notice[]>([]);
   const [sidecarStatus, setSidecarStatus] = useState<SidecarStatus>({
-    running: false,
-    port: 8188,
-    comfyui_ready: false,
-    version: '1.0.0',
-    python_version: '',
+    running: false, port: 0, comfyui_ready: false, version: '', python_version: '',
   });
   const [sidecarError, setSidecarError] = useState<string | null>(null);
   const [license, setLicense] = useState<LicenseInfo>({
-    key: '',
-    valid: false,
-    tier: 'free',
-    features: ['Basic generation', '512px max', 'Watermark'],
+    key: '', valid: false, tier: 'free', features: ['Unlimited local generation'],
   });
-  const [galleryItems, setGalleryItems] = useState<GenerationJob[]>([]);
+  const wsRef = useRef<WebSocket | null>(null);
+  const jobsRef = useRef<GenerationJob[]>([]);
+  const noticeId = useRef(0);
+
+  const notify = useCallback((kind: Notice['kind'], text: string) => {
+    const id = ++noticeId.current;
+    setNotices((n) => [...n.slice(-3), { id, kind, text }]);
+    setTimeout(() => setNotices((n) => n.filter((x) => x.id !== id)), kind === 'error' ? 9000 : 4500);
+  }, []);
+  const dismissNotice = useCallback((id: number) => setNotices((n) => n.filter((x) => x.id !== id)), []);
 
   const detectGPU = useCallback(async () => {
     setSetupStep(1);
     try {
-      const gpuInfo = await invoke<GPUInfo>('detect_gpu');
-      setGpu(gpuInfo);
-      setSetupStep(2);
-    } catch (err) {
-      console.error('GPU detection failed:', err);
-      setGpu({
-        name: 'No NVIDIA GPU detected',
-        vram: 0,
-        vram_mb: 0,
-        vram_gb: 0,
-        driver: 'N/A',
-        cuda_version: 'N/A',
-        temperature: 0,
-        detected: false,
-      });
-      setSetupStep(2);
+      setGpu(await tauriInvoke<GPUInfo>('detect_gpu'));
+    } catch {
+      setGpu({ name: 'No NVIDIA GPU detected', vram: 0, vram_mb: 0, vram_gb: 0, driver: 'N/A',
+        cuda_version: 'N/A', temperature: 0, detected: false });
     }
+    setSetupStep(2);
   }, []);
 
-  /**
-   * Fetch the VMR from the backend and build the model list from it,
-   * then layer live download status on top.
-   */
   const fetchModels = useCallback(async () => {
     try {
-      // Fetch VMR and transform to ModelInfo
-      const baseModels = await fetchVMRModels();
-
-      // Fetch live download status from backend
-      const statusRes = await fetch('http://127.0.0.1:8188/models');
-      const backendModels = await statusRes.json();
-
-      // Merge: VMR data + download state
-      const merged = baseModels.map((m) => {
-        const backendModel = backendModels[m.id];
-        if (backendModel) {
-          return {
-            ...m,
-            downloaded: backendModel.downloaded,
-            downloading: backendModel.downloading,
-            progress: backendModel.progress,
-            downloadProgress: backendModel.progress,
-            speed_mbps: backendModel.speed_mbps ?? 0,
-            speedMbps: backendModel.speed_mbps ?? 0,
-            eta_seconds: backendModel.eta_seconds ?? 0,
-            etaSeconds: backendModel.eta_seconds ?? 0,
-          };
-        }
-        return m;
-      });
-
+      const [config, states] = await Promise.all([api('/models/config'), api('/models')]);
+      const merged = Object.entries(config.models as Record<string, any>)
+        .map(([id, vmr]) => mergeState(toModelInfo(id, vmr), states[id]))
+        .sort((a, b) => Number(b.downloaded) - Number(a.downloaded)
+          || Number(b.recommended) - Number(a.recommended) || a.size - b.size);
       setModels(merged);
-
-      // Default the selected model to the first downloaded one, or first one if none are downloaded
-      setSelectedModel((prev) => {
-        if (prev) return prev;
-        const firstDownloaded = merged.find((m) => m.downloaded);
-        return firstDownloaded?.id || merged[0]?.id || '';
-      });
+      const videoModels = merged.filter((m) => m.kind === 'video');
+      setSelectedModel((prev) =>
+        prev && videoModels.some((m) => m.id === prev && m.downloaded)
+          ? prev
+          : videoModels.find((m) => m.downloaded && m.capabilities.text_to_video !== false)?.id
+            || videoModels.find((m) => m.downloaded)?.id || videoModels[0]?.id || '');
       return merged;
     } catch (err) {
-      console.error('Failed to fetch VMR from sidecar:', err);
+      console.error('[NeuralCut] fetchModels failed:', err);
       return [];
     }
   }, []);
 
-  useEffect(() => {
-    if (sidecarStatus.running && sidecarStatus.comfyui_ready) {
-      fetchModels();
-      connectWebSocket(setJobs, setGalleryItems, setModels);
+  const [images, setImages] = useState<ImageItem[]>([]);
+  const [audio, setAudio] = useState<AudioItem[]>([]);
+  const refreshAudio = useCallback(async () => {
+    try {
+      setAudio(await api<AudioItem[]>('/audio'));
+    } catch (err) {
+      console.error('[Pipeline] audio failed:', err);
     }
-  }, [sidecarStatus.running, sidecarStatus.comfyui_ready, fetchModels]);
+  }, []);
+  const refreshImages = useCallback(async () => {
+    try {
+      setImages(await api<ImageItem[]>('/images'));
+    } catch (err) {
+      console.error('[Pipeline] images failed:', err);
+    }
+  }, []);
+
+  const refreshOutputs = useCallback(async () => {
+    try {
+      setOutputs(await api<OutputItem[]>('/outputs'));
+    } catch (err) {
+      console.error('[NeuralCut] outputs failed:', err);
+    }
+  }, []);
+
+  const refreshStorage = useCallback(async () => {
+    try {
+      setStorage(await api<StorageReport>('/storage'));
+    } catch (err) {
+      console.error('[NeuralCut] storage failed:', err);
+    }
+  }, []);
+
+  // Applies one job_status update (from the WebSocket or a /jobs resync).
+  // Toasts fire once per job, only for jobs started from this window.
+  const myJobs = useRef(new Set<string>());
+  const announced = useRef(new Set<string>());
+  const applyJobStatus = useCallback((msg: any) => {
+    setJobs((prev) =>
+      prev.map((j) => {
+        if (j.id !== msg.job_id) return j;
+        if (['done', 'error', 'cancelled'].includes(j.status)) return j;  // final states never regress
+        return {
+          ...j,
+          status: msg.status as GenerationStatus,
+          progress: msg.progress ?? j.progress,
+          eta: msg.eta ?? 0,
+          message: msg.message || (msg.status === j.status ? j.message : undefined),
+          outputPath: msg.outputPath || j.outputPath,
+          error: msg.error || undefined,
+          elapsedSeconds: msg.elapsed_seconds,
+          enhanceJobId: msg.enhance_job_id || j.enhanceJobId,
+          endTime: ['done', 'error', 'cancelled'].includes(msg.status) ? Date.now() : j.endTime,
+        };
+      }));
+    const id = msg.job_id;
+    if ((msg.status === 'done' || msg.status === 'error') && myJobs.current.has(id) && !announced.current.has(id)) {
+      announced.current.add(id);
+      if (msg.status === 'done') {
+        refreshOutputs();
+        const kind = jobsRef.current.find((j) => j.id === id)?.kind;
+        if (kind === 'image' || String(msg.outputPath || '').endsWith('.png')) refreshImages();
+        if (kind === 'voice' || String(msg.outputPath || '').endsWith('.wav')) refreshAudio();
+        notify('success', kind === 'voice' ? 'Your voice-over is ready.' : kind === 'motion' ? 'Your photo motion is ready.' : kind === 'image' ? 'Your image is ready.' : kind === 'edit' ? 'Your edit is ready. It is in the gallery.'
+          : msg.enhance_job_id ? 'Your video is ready. Enhancing it now…' : 'Your video is ready.');
+      } else {
+        notify('error', `Generation failed: ${msg.error || 'unknown error'}`);
+      }
+    }
+  }, [notify, refreshOutputs]);
+
+  const resyncJobs = useCallback(async () => {
+    try {
+      const states = await api<Record<string, any>>('/jobs');
+      Object.values(states).forEach(applyJobStatus);
+      const orphaned = jobsRef.current.filter((j) => isActiveJob(j) && myJobs.current.has(j.id) && !states[j.id]);
+      if (orphaned.length) {
+        const outs = await api<OutputItem[]>('/outputs');
+        setOutputs(outs);
+        for (const j of orphaned) {
+          const made = outs.some((o) => o.name === `video_${j.id}.mp4`);
+          applyJobStatus(made
+            ? { job_id: j.id, status: 'done', progress: 100 }
+            : { job_id: j.id, status: 'error', error: 'Interrupted because the AI engine restarted. Please generate again.' });
+        }
+      }
+      for (const st of Object.values(states)) {
+        if (!myJobs.current.has(st.job_id) || ['done', 'error', 'cancelled'].includes(st.status)) continue;
+        const logs = await api<string[]>(`/jobs/${st.job_id}/logs`);
+        setJobs((prev) => prev.map((j) => (j.id === st.job_id && (j.logs?.length ?? 0) < logs.length
+          ? { ...j, logs: logs.slice(-300) } : j)));
+      }
+    } catch { /* engine restarting; the next tick retries */ }
+  }, [applyJobStatus]);
+
+  const connectWebSocket = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return;
+    const ws = new WebSocket(wsUrl());
+    wsRef.current = ws;
+
+    ws.onmessage = (event) => {
+      let msg: any;
+      try {
+        msg = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      if (msg.type === 'download_progress') {
+        setModels((prev) => prev.map((m) => (m.id === msg.model_id ? mergeState(m, msg) : m)));
+        if (msg.downloaded && !msg.downloading) {
+          notify('success', 'Model installed and verified. Ready to use.');
+          refreshStorage();
+          setModels((prev) => {
+            if (prev.find((m) => m.id === msg.model_id)?.kind === 'video') setSelectedModel((s) => s || msg.model_id);
+            return prev;
+          });
+        } else if (msg.error && !msg.downloading) {
+          notify('error', msg.error);
+        }
+      } else if (msg.type === 'agent_event' || msg.type === 'agent_state' || msg.type === 'production') {
+        if (msg.type === 'production') { refreshOutputs(); refreshImages(); }
+        agentListeners.forEach((fn) => fn(msg));
+      } else if (msg.type === 'job_status') {
+        applyJobStatus(msg);
+      } else if (msg.type === 'job_created') {
+        if (msg.parent_job_id && !myJobs.current.has(msg.parent_job_id)) return;
+        myJobs.current.add(msg.job_id);
+        setJobs((prev) => prev.some((j) => j.id === msg.job_id) ? prev : [{
+          id: msg.job_id, prompt: msg.prompt || prev.find((j) => j.id === msg.parent_job_id)?.prompt || 'Enhancing video',
+          negative_prompt: '', model_id: msg.model_id, status: 'queued', progress: 0, eta: 0,
+          startTime: Date.now(), kind: ['generate', 'image', 'voice', 'motion'].includes(msg.kind) ? msg.kind : 'enhance', summary: msg.summary, parentId: msg.parent_job_id || undefined,
+          estimateSeconds: msg.estimate_seconds, logs: [],
+        }, ...prev]);
+      } else if (msg.type === 'job_log') {
+        setJobs((prev) => prev.map((j) => {
+          if (j.id !== msg.job_id) return j;
+          const logs = j.logs ? [...j.logs] : [];
+          if (msg.replace && logs.length) logs[logs.length - 1] = msg.line;
+          else logs.push(msg.line);
+          return { ...j, logs: logs.slice(-300) };
+        }));
+      } else if (msg.type === 'strategy_attempt' && msg.status === 'failed') {
+        setJobs((prev) => prev.map((j) => (j.id === msg.job_id
+          ? { ...j, message: 'Retrying with a lower-memory method…' } : j)));
+      }
+    };
+    ws.onopen = () => resyncJobs();
+    ws.onclose = () => {
+      if (wsRef.current === ws) wsRef.current = null;
+      setTimeout(() => { if (apiReady()) connectWebSocket(); }, 2000);
+    };
+    ws.onerror = () => ws.close();
+  }, [notify, refreshStorage, applyJobStatus, resyncJobs]);
+
+  useEffect(() => {
+    if (!sidecarStatus.running) return;
+    fetchModels();
+    refreshOutputs();
+    refreshImages();
+    refreshAudio();
+    refreshStorage();
+    api<SystemInfo>('/system').then(setSystem).catch(() => {});
+    connectWebSocket();
+  }, [sidecarStatus.running, fetchModels, refreshOutputs, refreshStorage, connectWebSocket]);
+
+  // Safety net while anything is running: resync every few seconds.
+  const hasActiveJobs = jobs.some(isActiveJob);
+  jobsRef.current = jobs;
+  useEffect(() => {
+    if (!hasActiveJobs || !sidecarStatus.running) return;
+    const t = setInterval(resyncJobs, 4000);
+    return () => clearInterval(t);
+  }, [hasActiveJobs, sidecarStatus.running, resyncJobs]);
 
   const startSidecar = useCallback(async () => {
     setSidecarError(null);
     try {
-      const status = await invoke<{
-        running: boolean;
-        port: number;
-        pid: number | null;
-        message: string;
-      }>('start_sidecar');
-
-      console.log('Sidecar invoke result:', JSON.stringify(status));
-
-      if (status.running) {
-        const deadline = Date.now() + 15000;
-        const pollHealth = async () => {
-          try {
-            const res = await fetch('http://127.0.0.1:8188/health');
-            if (!res.ok) throw new Error(`Health check failed: ${res.status}`);
-            const data = await res.json();
-            console.log('Health check result:', JSON.stringify(data));
-            setSidecarStatus({
-              running: true,
-              port: 8188,
-              comfyui_ready: data.comfyui_ready,
-              version: data.version,
-              python_version: data.python_version,
-            });
-            return;
-          } catch (err) {
-            if (Date.now() < deadline) {
-              setTimeout(pollHealth, 500);
-              return;
-            }
-            console.error('Health check failed:', err);
-            setSidecarError('Backend started, but did not become ready in time.');
-            setSidecarStatus((prev) => ({ ...prev, running: false }));
-          }
-        };
-        pollHealth();
-      } else {
-        console.error('Sidecar reported not running:', status.message);
-        setSidecarError(status.message || 'Backend did not start.');
+      const st = await tauriInvoke<{ running: boolean; port: number; token: string; message: string }>('start_sidecar');
+      if (!st.running) {
+        setSidecarError(st.message || 'The AI engine did not start.');
+        return;
       }
+      configureApi(st.port, st.token);
+      // The engine imports torch on start, which can take a while on a cold disk.
+      const deadline = Date.now() + 90_000;
+      while (Date.now() < deadline) {
+        const h = await healthy();
+        if (h) {
+          setSidecarStatus({ running: true, port: st.port, token: st.token, comfyui_ready: true,
+            version: h.version, python_version: h.python_version });
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      setSidecarError('The AI engine started but did not respond. Check the log in Settings.');
     } catch (err) {
-      console.error('start_sidecar invoke failed:', err);
       setSidecarError(String(err));
     }
   }, []);
 
-  const downloadModel = useCallback(async (modelId: string) => {
-    if (activeEventSources[modelId]) return;
+  const restartEngine = useCallback(async () => {
+    wsRef.current?.close();
+    wsRef.current = null;
+    try { await tauriInvoke('stop_sidecar'); } catch { /* already stopped */ }
+    setSidecarStatus((s) => ({ ...s, running: false }));
+    await startSidecar();
+  }, [startSidecar]);
 
-    setModels((prev) =>
-      prev.map((m) =>
-        m.id === modelId
-          ? { ...m, downloading: true, progress: 0 }
-          : m
-      )
-    );
-
-    try {
-      const startRes = await fetch(
-        `http://127.0.0.1:8188/models/download/${modelId}`,
-        { method: 'POST' }
-      );
-      const startData = await startRes.json();
-      if (startData.status === 'error') {
-        console.error('Failed to start model download:', startData.message);
-        setModels((prev) =>
-          prev.map((m) =>
-            m.id === modelId
-              ? { ...m, downloading: false, progress: 0 }
-              : m
-          )
-        );
+  // Watchdog: if the engine stops answering (crash, killed by antivirus, …),
+  // show it as offline and restart it so the user never has to.
+  const restarting = useRef(false);
+  useEffect(() => {
+    if (!sidecarStatus.running) return;
+    let failures = 0;
+    const t = setInterval(async () => {
+      if (restarting.current) return;
+      if (await healthy()) {
+        failures = 0;
         return;
       }
+      failures += 1;
+      if (failures >= 3) {
+        restarting.current = true;
+        notify('error', 'The AI engine stopped responding. Restarting it…');
+        await restartEngine();
+        restarting.current = false;
+        failures = 0;
+      }
+    }, 10_000);
+    return () => clearInterval(t);
+  }, [sidecarStatus.running, restartEngine, notify]);
 
-      const es = new EventSource(
-        `http://127.0.0.1:8188/models/download/${modelId}/progress`
-      );
-      activeEventSources[modelId] = es;
-
-      es.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (!data.downloading || data.downloaded) {
-            es.close();
-            delete activeEventSources[modelId];
-            setModels((prev) =>
-              prev.map((m) =>
-                m.id === modelId
-                  ? {
-                      ...m,
-                      downloading: data.downloading,
-                      downloaded: data.downloaded,
-                      progress: data.progress,
-                      downloadProgress: data.progress,
-                    }
-                  : m
-              )
-            );
-          }
-        } catch (e) {
-          console.error('Error parsing SSE message:', e);
-        }
-      };
-
-      es.onerror = () => {
-        es.close();
-        delete activeEventSources[modelId];
-      };
-    } catch (err) {
-      console.error('Error initiating download:', err);
-      setModels((prev) =>
-        prev.map((m) =>
-          m.id === modelId
-            ? { ...m, downloading: false, progress: 0 }
-            : m
-        )
-      );
+  const downloadModel = useCallback(async (modelId: string, acceptLicense = false) => {
+    setModels((prev) => prev.map((m) => (m.id === modelId ? { ...m, downloading: true, downloadError: null } : m)));
+    try {
+      await post(`/models/download/${modelId}`, { accept_license: acceptLicense });
+    } catch (err: any) {
+      setModels((prev) => prev.map((m) => (m.id === modelId ? { ...m, downloading: false } : m)));
+      notify('error', err.message);
     }
-  }, []);
+  }, [notify]);
 
   const cancelDownload = useCallback(async (modelId: string) => {
-    if (activeEventSources[modelId]) {
-      activeEventSources[modelId].close();
-      delete activeEventSources[modelId];
-    }
-    setModels((prev) =>
-      prev.map((m) =>
-        m.id === modelId ? { ...m, downloading: false, progress: 0 } : m
-      )
-    );
     try {
-      await fetch(`http://127.0.0.1:8188/models/${modelId}`, {
-        method: 'DELETE',
-      });
-    } catch (err) {
-      console.error('Failed to cancel download on backend:', err);
+      await post(`/models/download/${modelId}/cancel`);
+      notify('info', 'Download paused. Progress is kept, so it resumes where it stopped.');
+    } catch (err: any) {
+      notify('error', err.message);
     }
-  }, []);
+  }, [notify]);
 
   const deleteModel = useCallback(async (modelId: string) => {
-    setModels((prev) =>
-      prev.map((m) =>
-        m.id === modelId ? { ...m, downloaded: false, progress: 0 } : m
-      )
-    );
     try {
-      await fetch(`http://127.0.0.1:8188/models/${modelId}`, {
-        method: 'DELETE',
-      });
-    } catch (err) {
-      console.error('Failed to delete model on backend:', err);
+      const res = await del<{ removed: string[] }>(`/models/${modelId}`);
+      notify('success', `Removed ${res.removed.length} folder${res.removed.length === 1 ? '' : 's'}.`);
+    } catch (err: any) {
+      notify('error', err.message);
+    }
+    await fetchModels();
+    refreshStorage();
+  }, [fetchModels, notify, refreshStorage]);
+
+  const deleteOrphan = useCallback(async (name: string) => {
+    try {
+      await del(`/storage/orphans/${encodeURIComponent(name)}`);
+      notify('success', `Deleted ${name}.`);
+    } catch (err: any) {
+      notify('error', err.message);
+    }
+    refreshStorage();
+  }, [notify, refreshStorage]);
+
+  const startGeneration = useCallback(
+    async (prompt: string, negPrompt: string, modelId: string, settings: Record<string, any>) => {
+      try {
+        const data = await post<{ job_id: string; estimate_seconds: number | null }>('/generate', {
+          prompt, negative_prompt: negPrompt, model_id: modelId, ...settings,
+        });
+        myJobs.current.add(data.job_id);
+        setJobs((prev) => [{
+          id: data.job_id, prompt, negative_prompt: negPrompt, model_id: modelId,
+          status: 'queued', progress: 0, eta: 0, startTime: Date.now(),
+          estimateSeconds: data.estimate_seconds, logs: [],
+          kind: settings.kind === 'image' ? 'image' : 'generate',
+          summary: settings.kind === 'image' ? `Image ${settings.width}×${settings.height}`
+            : `${settings.start_image ? 'From image · ' : ''}${settings.width}×${settings.height} · ${(settings.num_frames / (settings.fps || 24)).toFixed(1)}s`,
+        }, ...prev]);
+        return data.job_id;
+      } catch (err: any) {
+        notify('error', err.message);
+        return null;
+      }
+    }, [notify]);
+
+  /** Upscale/restore an existing video with an installed enhancer. */
+  const enhanceVideo = useCallback(async (source: string, enhancerId: string, target: string, prompt: string) => {
+    try {
+      const data = await post<{ job_id: string }>('/enhance', { source, enhancer_id: enhancerId, target });
+      myJobs.current.add(data.job_id);
+      const name = models.find((m) => m.id === enhancerId)?.name || 'Enhance';
+      setJobs((prev) => prev.some((j) => j.id === data.job_id) ? prev : [{
+        id: data.job_id, prompt: prompt || source, negative_prompt: '', model_id: enhancerId,
+        status: 'queued', progress: 0, eta: 0, startTime: Date.now(), kind: 'enhance',
+        summary: `${name} to ${target}`, logs: [],
+      }, ...prev]);
+      notify('info', 'Enhancement queued. You can follow it in the Jobs list.');
+    } catch (err: any) {
+      notify('error', err.message);
+    }
+  }, [models, notify]);
+
+  /** Expected seconds for these settings on this PC, or null without history. */
+  const estimateFor = useCallback(async (modelId: string, settings: Record<string, any>) => {
+    try {
+      const res = await post<{ seconds: number } | null>('/estimate', { prompt: '-', model_id: modelId, ...settings });
+      return res?.seconds ?? null;
+    } catch {
+      return null;
     }
   }, []);
 
-  /**
-   * Start a generation job.
-   * Takes slider values from the UI, sends them to the backend.
-   * Backend re-validates every setting against VMR limits via clamp_settings().
-   */
-  const startGeneration = useCallback(
-    async (
-      prompt: string,
-      negPrompt: string,
-      modelId: string,
-      settings: Record<string, any>
-    ) => {
-      try {
-        const res = await fetch('http://127.0.0.1:8188/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt,
-            negative_prompt: negPrompt,
-            model_id: modelId,
-            ...settings,
-          }),
-        });
-        const data = await res.json();
+  /** Stitch clips into one video (runs on the CPU, alongside any GPU job). */
+  const renderEdit = useCallback(async (payload: RenderPayload) => {
+    try {
+      const data = await post<{ job_id: string; duration: number }>('/edit/render', payload);
+      myJobs.current.add(data.job_id);
+      setJobs((prev) => [{
+        id: data.job_id, prompt: payload.title || `Edit of ${payload.clips.length} clips`, negative_prompt: '',
+        model_id: 'editor', status: 'queued', progress: 0, eta: 0, startTime: Date.now(), kind: 'edit',
+        summary: `${payload.clips.length} clips · ${data.duration.toFixed(1)}s · ${payload.transition === 'fade' ? 'crossfades' : 'cuts'}`,
+        logs: [],
+      }, ...prev]);
+      return data.job_id;
+    } catch (err: any) {
+      notify('error', err.message);
+      return null;
+    }
+  }, [notify]);
 
-        if (data.status === 'error') {
-          console.error('Generation error:', data.message);
-          return;
-        }
+  /** Text to speech: a preset voice (Kokoro) or a voice described in words (Qwen3-TTS). */
+  const speak = useCallback(async (body: { model_id: string; text: string; voice?: string; instruct?: string; language?: string; speed?: number; title?: string }) => {
+    try {
+      const data = await post<{ job_id: string }>('/voices/speak', body);
+      myJobs.current.add(data.job_id);
+      setJobs((prev) => [{
+        id: data.job_id, prompt: body.text, negative_prompt: '', model_id: body.model_id, status: 'queued', progress: 0,
+        eta: 0, startTime: Date.now(), kind: 'voice', summary: body.instruct ? 'Designed voice' : `Voice: ${body.voice}`, logs: [],
+      }, ...prev]);
+      return data.job_id;
+    } catch (err: any) {
+      notify('error', err.message);
+      return null;
+    }
+  }, [notify]);
 
-        const newJob: GenerationJob = {
-          id: data.job_id,
-          prompt,
-          negative_prompt: negPrompt,
-          model_id: modelId,
-          status: 'queued',
-          progress: 0,
-          eta: 0,
-          startTime: Date.now(),
-        };
-        setJobs((prev) => [newJob, ...prev]);
-      } catch (err) {
-        console.error('Failed to start generation:', err);
-      }
-    },
-    []
-  );
+  /** Photo motion: a cinematic camera move through a still image. */
+  const animatePhoto = useCallback(async (image: string, move: string, seconds: number, strength = 1) => {
+    try {
+      const data = await post<{ job_id: string }>(`/images/${encodeURIComponent(image)}/animate`, { move, seconds, strength });
+      myJobs.current.add(data.job_id);
+      setJobs((prev) => [{
+        id: data.job_id, prompt: `Photo motion of ${image}`, negative_prompt: '', model_id: 'photo-motion', status: 'queued',
+        progress: 0, eta: 0, startTime: Date.now(), kind: 'motion', summary: `${move.replace('_', ' ')} · ${seconds}s`, logs: [],
+      }, ...prev]);
+      return data.job_id;
+    } catch (err: any) {
+      notify('error', err.message);
+      return null;
+    }
+  }, [notify]);
+
+  const cancelJob = useCallback(async (jobId: string) => {
+    try {
+      await post(`/generate/${jobId}/cancel`);
+    } catch (err: any) {
+      notify('error', err.message);
+    }
+  }, [notify]);
+
+  const dismissJob = useCallback((jobId: string) => setJobs((prev) => prev.filter((j) => j.id !== jobId)), []);
+
+  const deleteOutput = useCallback(async (name: string) => {
+    try {
+      await del(`/outputs/${encodeURIComponent(name)}`);
+      setOutputs((prev) => prev.filter((o) => o.name !== name));
+    } catch (err: any) {
+      notify('error', err.message);
+    }
+  }, [notify]);
+
+  const revealOutput = useCallback(async (name: string) => {
+    try {
+      await post(`/outputs/${encodeURIComponent(name)}/reveal`);
+    } catch (err: any) {
+      notify('error', err.message);
+    }
+  }, [notify]);
 
   const validateLicense = useCallback(async (key: string) => {
     try {
-      const res = await fetch('http://127.0.0.1:8188/license/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key }),
-      });
-      const data = await res.json();
-      setLicense({
-        key,
-        valid: data.valid,
-        tier: data.tier,
-        expires_at: data.expires_at,
-        features: data.features,
-      });
-    } catch (err) {
-      console.error('License validation failed:', err);
-      setLicense({
-        key,
-        valid: false,
-        tier: 'free',
-        features: ['Basic generation', '512px max', 'Watermark'],
-      });
+      const data = await post('/license/validate', { key });
+      setLicense({ key, valid: data.valid, tier: data.tier, expires_at: data.expires_at, features: data.features });
+    } catch {
+      setLicense({ key, valid: false, tier: 'free', features: ['Unlimited local generation'] });
     }
   }, []);
 
   return {
-    view,
-    setView,
-    setupStep,
-    setSetupStep,
-    gpu,
-    setGpu,
-    models,
-    setModels,
-    jobs,
-    setJobs,
-    currentPrompt,
-    setCurrentPrompt,
-    negativePrompt,
-    setNegativePrompt,
-    selectedModel,
-    setSelectedModel,
-    sidecarStatus,
-    setSidecarStatus,
-    sidecarError,
-    license,
-    setLicense,
-    galleryItems,
-    setGalleryItems,
-    detectGPU,
-    startSidecar,
-    fetchModels,
-    downloadModel,
-    cancelDownload,
-    deleteModel,
-    startGeneration,
-    validateLicense,
+    view, setView, setupStep, setSetupStep, gpu, setGpu, system,
+    models, setModels, jobs, setJobs, outputs, storage,
+    currentPrompt, setCurrentPrompt, negativePrompt, setNegativePrompt,
+    selectedModel, setSelectedModel, sidecarStatus, setSidecarStatus, sidecarError,
+    license, setLicense, notices, dismissNotice, notify,
+    detectGPU, startSidecar, restartEngine, fetchModels, refreshOutputs, refreshStorage,
+    downloadModel, cancelDownload, deleteModel, deleteOrphan,
+    images, refreshImages, audio, refreshAudio, speak, animatePhoto,
+    startGeneration, estimateFor, enhanceVideo, renderEdit, cancelJob, dismissJob, deleteOutput, revealOutput, validateLicense,
   };
 }

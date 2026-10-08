@@ -116,7 +116,7 @@ export default function LicensePanel({ license, onValidate }: LicensePanelProps)
                 </h3>
                 <p className="text-xs text-text-secondary mt-0.5">
                   {license.valid
-                    ? `Expires: ${license.expiresAt} · Key: ${license.key.slice(0, 8)}...`
+                    ? `Expires: ${license.expires_at} · Key: ${license.key.slice(0, 8)}...`
                     : 'Enter a license key to unlock Pro features'}
                 </p>
                 {license.valid && (

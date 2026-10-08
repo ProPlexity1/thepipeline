@@ -8,5 +8,11 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
-models/
+/models/
+/src-tauri/sidecar/models/
 outputs/
+# Local Python env for voice models (bootstrapped by the installer)
+src-tauri/sidecar/voice_venv/
+# Generated media and scratch files
+/*.wav
+/*.mp4

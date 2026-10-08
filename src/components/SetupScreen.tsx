@@ -4,7 +4,7 @@ import {
   Cpu, Monitor, CheckCircle2, AlertTriangle, Loader2,
   Zap, HardDrive, ArrowRight, Sparkles, Shield
 } from 'lucide-react';
-import type { GPUInfo, ModelInfo, ModelTier, SidecarStatus } from '../types';
+import type { GPUInfo, ModelInfo, SidecarStatus } from '../types';
 import { cn } from '../utils/cn';
 
 interface SetupScreenProps {
@@ -18,19 +18,11 @@ interface SetupScreenProps {
   onComplete: () => void;
 }
 
-function getRecommendedTier(vram: number): { tier: ModelTier; label: string; color: string } {
-  if (vram >= 16) return { tier: 'ultra', label: 'Ultra', color: 'text-purple-400' };
-  if (vram >= 12) return { tier: 'pro', label: 'Pro', color: 'text-blue-400' };
-  if (vram >= 8) return { tier: 'standard', label: 'Standard', color: 'text-cyan-400' };
-  return { tier: 'lite', label: 'Lite', color: 'text-green-400' };
-}
+const SETUP_DONE_KEY = 'neuralcut.setupDone';
 
-const VRAM_TABLE = [
-  { tier: 'Lite', vram: '6 GB+', resolution: '512×320', fps: 8, duration: '2-4s', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
-  { tier: 'Standard', vram: '8 GB+', resolution: '768×512', fps: 16, duration: '3-5s', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
-  { tier: 'Pro', vram: '12 GB+', resolution: '1024×576', fps: 24, duration: '4-8s', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  { tier: 'Ultra', vram: '16 GB+', resolution: '1280×720', fps: 30, duration: '5-10s', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-];
+function setupDoneBefore() {
+  try { return localStorage.getItem(SETUP_DONE_KEY) === '1'; } catch { return false; }
+}
 
 export default function SetupScreen({
   step,
@@ -53,9 +45,22 @@ export default function SetupScreen({
   }, [started, onDetectGPU, onStartBackend]);
 
   const gpuReady = Boolean(gpu?.detected);
-  const allChecked = gpuReady && sidecar.running && sidecar.comfyui_ready && models.length > 0;
-  const recommended = gpu ? getRecommendedTier(gpu.vram) : null;
+  const allChecked = gpuReady && sidecar.running && models.length > 0;
   const cudaVersion = gpu?.cuda_version || 'Checking';
+  const videoModels = models.filter((m) => m.kind === 'video');
+  const fitting = videoModels.filter((m) => gpu && gpu.vram + 0.5 >= m.minimum_vram_gb);
+  const recommended = fitting.find((m) => m.recommended && m.downloaded) || fitting.find((m) => m.recommended)
+    || fitting.find((m) => m.downloaded) || fitting[0];
+
+  const finish = () => {
+    try { localStorage.setItem(SETUP_DONE_KEY, '1'); } catch { /* storage unavailable */ }
+    onComplete();
+  };
+
+  // After the first run, skip straight into the app once everything is ready.
+  useEffect(() => {
+    if (allChecked && setupDoneBefore()) onComplete();
+  }, [allChecked, onComplete]);
 
   return (
     <div className="flex h-screen w-full items-center justify-center overflow-y-auto bg-bg-primary px-4 py-6">
@@ -85,12 +90,12 @@ export default function SetupScreen({
               </div>
             </motion.div>
             <div className="text-center">
-              <h1 className="text-4xl font-bold tracking-tight text-text-primary">NeuralCut</h1>
+              <h1 className="text-4xl font-bold tracking-tight text-text-primary">The Pipeline</h1>
               <p className="mt-2 text-lg text-text-secondary">Local AI Video Generation</p>
             </div>
             <div className="flex items-center gap-2 text-text-muted">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">Starting backend and reading hardware...</span>
+              <span className="text-sm">Starting up…</span>
             </div>
           </motion.div>
         )}
@@ -116,12 +121,12 @@ export default function SetupScreen({
               </div>
             </div>
             <div className="text-center">
-              <h2 className="text-2xl font-semibold text-text-primary">Detecting Hardware</h2>
-              <p className="mt-2 text-text-secondary">Scanning for NVIDIA GPUs and available VRAM...</p>
+              <h2 className="text-2xl font-semibold text-text-primary">Checking your PC</h2>
+              <p className="mt-2 text-text-secondary">Looking for a compatible graphics card…</p>
             </div>
             <div className="flex items-center gap-3 rounded-xl bg-bg-secondary border border-border-dim px-6 py-3">
               <Loader2 className="h-5 w-5 animate-spin text-accent-blue" />
-              <span className="text-sm text-text-secondary">Running nvidia-smi detection...</span>
+              <span className="text-sm text-text-secondary">This only takes a moment</span>
             </div>
           </motion.div>
         )}
@@ -136,7 +141,7 @@ export default function SetupScreen({
             transition={{ duration: 0.4 }}
             className="relative z-10 w-full max-w-2xl px-4"
           >
-            <div className="rounded-2xl bg-bg-secondary border border-border-dim overflow-hidden">
+            <div className="surface rounded-2xl border border-border-dim shadow-2xl shadow-black/40 overflow-hidden">
               {/* Header */}
               <div className="border-b border-border-dim px-8 py-6">
                 <div className="flex items-center gap-3">
@@ -159,71 +164,43 @@ export default function SetupScreen({
                   <InfoCard icon={<Zap className="h-4 w-4" />} label="CUDA" value={cudaVersion === 'Checking' ? cudaVersion : `v${cudaVersion}`} />
                 </div>
 
-                {/* Recommended Tier */}
                 {recommended && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
+                    transition={{ delay: 0.2 }}
                     className="rounded-xl bg-gradient-to-r from-accent-purple/10 to-accent-blue/10 border border-accent-purple/20 p-4"
                   >
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-1">
                       <Sparkles className="h-4 w-4 text-accent-purple" />
-                      <span className="text-sm font-medium text-text-primary">Recommended Tier</span>
+                      <span className="text-sm font-medium text-text-primary">Recommended for your PC</span>
                     </div>
-                    <p className="text-lg font-bold">
-                      <span className={recommended.color}>{recommended.label}</span>
-                      <span className="text-text-secondary text-sm font-normal ml-2">— Best quality for your {gpu.vram}GB VRAM</span>
+                    <p className="text-base font-semibold text-text-primary">{recommended.name}</p>
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      {recommended.downloaded
+                        ? 'Already installed and ready to use.'
+                        : `${recommended.description} One-time download of about ${recommended.size.toFixed(0)} GB from the Models page.`}
+                    </p>
+                    <p className="text-xs text-text-muted mt-1">
+                      {fitting.length} of {videoModels.length} available models run on your {gpu.vram} GB graphics card.
                     </p>
                   </motion.div>
                 )}
 
-                {/* VRAM Table */}
-                <div>
-                  <h3 className="text-sm font-medium text-text-muted mb-3 uppercase tracking-wider">Model Tiers</h3>
-                  <div className="space-y-2">
-                    {VRAM_TABLE.map((row, i) => {
-                      const isRecommended = recommended?.label === row.tier;
-                      return (
-                        <motion.div
-                          key={row.tier}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.1 * i + 0.5 }}
-                          className={cn(
-                            'flex items-center justify-between rounded-lg border px-4 py-2.5 text-sm',
-                            isRecommended ? row.color + ' ring-1 ring-inset' : 'bg-bg-tertiary/50 border-border-dim text-text-secondary'
-                          )}
-                        >
-                          <div className="flex items-center gap-3">
-                            {isRecommended && <CheckCircle2 className="h-4 w-4" />}
-                            <span className="font-medium">{row.tier}</span>
-                            <span className="text-xs opacity-70">{row.vram}</span>
-                          </div>
-                          <div className="flex gap-4 text-xs opacity-80">
-                            <span>{row.resolution}</span>
-                            <span>{row.fps}fps</span>
-                            <span>{row.duration}</span>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 {/* Sidecar Status */}
                 <div>
-                  <h3 className="text-sm font-medium text-text-muted mb-3 uppercase tracking-wider">Backend Status</h3>
+                  <h3 className="text-sm font-medium text-text-muted mb-3 uppercase tracking-wider">Getting ready</h3>
                   <div className="grid grid-cols-2 gap-2">
-                    <CheckItem label={sidecar.python_version ? `Python ${sidecar.python_version.split(' ')[0]}` : 'Python'} checked={Boolean(sidecar.python_version)} />
-                    <CheckItem label="FastAPI Server" checked={sidecar.running} />
-                    <CheckItem label="Model Registry" checked={models.length > 0} />
-                    <CheckItem label="Backend Ready" checked={sidecar.comfyui_ready} />
+                    <CheckItem label="Graphics card" checked={gpuReady} />
+                    <CheckItem label="AI engine started" checked={sidecar.running} failed={!!sidecarError} />
+                    <CheckItem label="Model list loaded" checked={models.length > 0} failed={!!sidecarError} />
+                    <CheckItem label="Private: runs offline" checked />
                   </div>
                   {sidecarError && (
-                    <p className="mt-3 rounded-lg border border-accent-amber/30 bg-accent-amber/10 px-3 py-2 text-xs text-accent-amber">
-                      {sidecarError}
-                    </p>
+                    <div className="mt-3 flex items-start justify-between gap-3 rounded-lg border border-accent-amber/30 bg-accent-amber/10 px-3 py-2 text-xs text-accent-amber">
+                      <span>{sidecarError}</span>
+                      <button onClick={onStartBackend} className="flex-shrink-0 font-medium hover:underline">Try again</button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -233,7 +210,7 @@ export default function SetupScreen({
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={onComplete}
+                  onClick={finish}
                   disabled={!allChecked}
                   className={cn(
                     'flex items-center gap-2 rounded-xl px-6 py-2.5 font-medium text-sm transition-all',
@@ -242,7 +219,7 @@ export default function SetupScreen({
                       : 'bg-bg-tertiary text-text-muted cursor-not-allowed'
                   )}
                 >
-                  Continue to App
+                  Start creating
                   <ArrowRight className="h-4 w-4" />
                 </motion.button>
               </div>
@@ -264,14 +241,15 @@ export default function SetupScreen({
               </div>
               <h2 className="text-xl font-semibold text-text-primary mb-2">No NVIDIA GPU Detected</h2>
               <p className="text-text-secondary text-sm mb-6">
-                NeuralCut requires an NVIDIA GPU with at least 6GB VRAM for local video generation. 
-                Please ensure your GPU drivers are installed correctly.
+                The Pipeline needs an NVIDIA graphics card with at least 8 GB of video memory.
+                If you have one, install or update the NVIDIA driver from nvidia.com, restart, and try again.
               </p>
-              <div className="rounded-lg bg-bg-tertiary border border-border-dim p-3 text-left text-xs text-text-muted font-mono">
-                $ nvidia-smi<br />
-                NVIDIA-SMI has failed because it couldn't<br />
-                communicate with the NVIDIA driver.
-              </div>
+              <button
+                onClick={onDetectGPU}
+                className="rounded-xl bg-bg-tertiary border border-border-dim px-5 py-2 text-sm text-text-primary hover:border-border-active"
+              >
+                Check again
+              </button>
             </div>
           </motion.div>
         )}
@@ -292,11 +270,13 @@ function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-function CheckItem({ label, checked }: { label: string; checked: boolean }) {
+function CheckItem({ label, checked, failed }: { label: string; checked: boolean; failed?: boolean }) {
   return (
     <div className="flex items-center gap-2 rounded-lg bg-bg-tertiary/30 border border-border-dim px-3 py-2">
       {checked ? (
         <CheckCircle2 className="h-4 w-4 text-accent-green flex-shrink-0" />
+      ) : failed ? (
+        <AlertTriangle className="h-4 w-4 text-accent-amber flex-shrink-0" />
       ) : (
         <Loader2 className="h-4 w-4 text-text-muted animate-spin flex-shrink-0" />
       )}

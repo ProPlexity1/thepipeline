@@ -1,0 +1,299 @@
+{
+  "identity": {
+    "id": "cogvideox-2b",
+    "display_name": "CogVideoX-2B",
+    "family": "cogvideox",
+    "variant": "2B",
+    "status": "disabled",
+    "disabled_reason": "No working pipeline definition; low quality for its size."
+  },
+  "capabilities": {
+    "text_to_video": true,
+    "image_to_video": false,
+    "video_to_video": false,
+    "audio_generation": false,
+    "lora": false,
+    "controlnet": false,
+    "max_prompt_tokens": 226
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "THUDM/CogVideoX-2b",
+    "revision": "main",
+    "download_method": "hf_hub",
+    "estimated_download_size_gb": 9,
+    "required_disk_space_gb": 10.5,
+    "shared_resources": null,
+    "files": {
+      "required": [
+        "model_index.json",
+        "scheduler/scheduler_config.json",
+        "text_encoder/config.json",
+        "text_encoder/model-00001-of-00002.safetensors",
+        "text_encoder/model-00002-of-00002.safetensors",
+        "text_encoder/model.safetensors.index.json",
+        "tokenizer/added_tokens.json",
+        "tokenizer/special_tokens_map.json",
+        "tokenizer/spiece.model",
+        "tokenizer/tokenizer_config.json",
+        "transformer/config.json",
+        "transformer/diffusion_pytorch_model.safetensors",
+        "vae/config.json",
+        "vae/diffusion_pytorch_model.safetensors"
+      ],
+      "optional": [],
+      "generated": []
+    }
+  },
+  "runtime": {
+    "backend": "diffusers",
+    "pipeline_class": "CogVideoXPipeline",
+    "load_mode": "from_pretrained",
+    "transformer_class": null,
+    "transformer_file": null,
+    "dtype": "bfloat16",
+    "requires_model_index": true,
+    "expected_model_index_class": "CogVideoXPipeline",
+    "min_diffusers_version": "0.30.0",
+    "load_kwargs": {},
+    "alignment_policy": "validate downloaded model_index.json _class_name against runtime.pipeline_class before generation"
+  },
+  "optimization": {
+    "offload_strategy": "auto",
+    "vae_tiling": true,
+    "vae_slicing": true,
+    "attention_slicing": false,
+    "torch_compile": false,
+    "quantization": null,
+    "notes": "CogVideoXPipeline does not expose enable_vae_tiling() on the pipeline object directly — tiling/slicing must be called on pipe.vae."
+  },
+  "hardware": {
+    "minimum_vram_gb": 4,
+    "recommended_vram_gb": 12,
+    "recommended_ram_gb": 16,
+    "recommended_gpu": "8GB+ consumer GPU with sequential CPU offload; 12GB+ for whole-submodule offload"
+  },
+  "generation": {
+    "defaults": {
+      "steps": 50,
+      "cfg_scale": 6,
+      "width": 720,
+      "height": 480,
+      "num_frames": 49,
+      "fps": 8
+    },
+    "limits": {
+      "steps": {
+        "default": 50,
+        "min": 20,
+        "max": 60,
+        "step": 5
+      },
+      "cfg_scale": {
+        "default": 6,
+        "min": 3,
+        "max": 8,
+        "step": 0.5
+      },
+      "width": {
+        "default": 720,
+        "min": 480,
+        "max": 720,
+        "step": 16
+      },
+      "height": {
+        "default": 480,
+        "min": 320,
+        "max": 480,
+        "step": 16
+      },
+      "num_frames": {
+        "default": 49,
+        "min": 17,
+        "max": 49,
+        "step": 8
+      },
+      "fps": {
+        "default": 8,
+        "min": 8,
+        "max": 8,
+        "step": 1
+      }
+    }
+  },
+  "ui": {
+    "tier": "lite",
+    "featured": true,
+    "recommended": true,
+    "description": "Fastest, lowest-VRAM CogVideoX variant. Good motion coherence on simple scenes; softer detail on complex/dynamic subjects.",
+    "pros": [
+      "Lowest VRAM requirement in the CogVideoX family",
+      "Good motion coherence for simple scenes"
+    ],
+    "cons": [
+      "Struggles with complex or highly detailed subjects",
+      "No audio, no image-to-video input",
+      "6-second native output at 8fps — feels short/slow-motion if exported at a higher fps"
+    ],
+    "tags": [
+      "text-to-video",
+      "fast",
+      "entry-tier"
+    ],
+    "thumbnail": null,
+    "accent_color": "#22c55e"
+  },
+  "documentation": {
+    "huggingface": "https://huggingface.co/THUDM/CogVideoX-2b",
+    "diffusers_docs": "https://huggingface.co/docs/diffusers/en/api/pipelines/cogvideox",
+    "github": "https://github.com/huggingface/diffusers/blob/main/docs/source/en/api/pipelines/cogvideox.md",
+    "paper": null
+  },
+  "verification": {
+    "status": "verified",
+    "verified_on": "2026-07-20",
+    "verified_sources": [
+      "https://huggingface.co/docs/diffusers/en/api/pipelines/cogvideox",
+      "https://huggingface.co/THUDM/CogVideoX-2b",
+      "https://github.com/huggingface/diffusers/blob/main/docs/source/en/api/pipelines/cogvideox.md"
+    ],
+    "notes": "Reference implementation for VMR v1."
+  },
+  "scheduler": {
+    "default": "DDIM",
+    "class_name": "DDIMScheduler",
+    "params": {}
+  },
+  "quantization": {
+    "default": "fp16",
+    "supported": [
+      "none",
+      "fp16",
+      "bf16",
+      "fp8",
+      "auto"
+    ]
+  },
+  "validation": {
+    "min_frames": 8,
+    "min_width": 256,
+    "min_height": 256,
+    "check_nan": true,
+    "check_black_frames": true,
+    "min_std_dev": 0.005,
+    "max_std_dev": 0.45,
+    "min_fps": 8,
+    "max_fps": 8
+  },
+  "profiles": {
+    "fast": {
+      "label": "Fast",
+      "description": "Rapid draft generation",
+      "steps": 25,
+      "cfg_scale": 5,
+      "width": 720,
+      "height": 480,
+      "num_frames": 49,
+      "fps": 8,
+      "scheduler": "DDIM",
+      "quantization": "fp16"
+    },
+    "balanced": {
+      "label": "Balanced",
+      "description": "Smooth movement & rich detail",
+      "steps": 50,
+      "cfg_scale": 6,
+      "width": 720,
+      "height": 480,
+      "num_frames": 49,
+      "fps": 8,
+      "scheduler": "DDIM",
+      "quantization": "fp16"
+    },
+    "detailed": {
+      "label": "Detailed",
+      "description": "High iteration refined render",
+      "steps": 75,
+      "cfg_scale": 7,
+      "width": 720,
+      "height": 480,
+      "num_frames": 81,
+      "fps": 8,
+      "scheduler": "DDIM",
+      "quantization": "fp16"
+    }
+  },
+  "_pipeline_config": {
+    "_comment": "CogVideoX pipeline - note: no custom decode params like LTX. Scheduler config is explicit here.",
+    "steps": [
+      {
+        "fn": "load_job",
+        "config": {}
+      },
+      {
+        "fn": "load_pipeline",
+        "config": {
+          "_comment": "CogVideoX uses standard from_pretrained loading"
+        }
+      },
+      {
+        "fn": "quantize",
+        "config": {
+          "quantization": "fp16",
+          "_comment": "CogVideoX prefers fp16 for better stability than bf16"
+        }
+      },
+      {
+        "fn": "configure_scheduler",
+        "config": {
+          "scheduler": "DDIM",
+          "_comment": "CogVideoX uses DDIM scheduler"
+        }
+      },
+      {
+        "fn": "configure_memory",
+        "config": {
+          "_comment": "High-VRAM model, needs sequential offload on < 12GB"
+        }
+      },
+      {
+        "fn": "optimize",
+        "config": {
+          "optimization": {
+            "tf32": true,
+            "vae_tiling": true,
+            "vae_slicing": true,
+            "attention_slicing": false,
+            "xformers": true
+          },
+          "_comment": "CogVideoX benefits from xFormers. VAE tiling called on pipe.vae, not pipeline"
+        }
+      },
+      {
+        "fn": "prepare_generation_args",
+        "config": {
+          "enable_step_callback": true,
+          "_comment": "Standard generation args, no model-specific special fields"
+        }
+      },
+      {
+        "fn": "generate",
+        "config": {}
+      },
+      {
+        "fn": "validate",
+        "config": {}
+      },
+      {
+        "fn": "export",
+        "config": {
+          "output_filename": "video_{job_id}.mp4"
+        }
+      },
+      {
+        "fn": "cleanup",
+        "config": {}
+      }
+    ]
+  }
+}

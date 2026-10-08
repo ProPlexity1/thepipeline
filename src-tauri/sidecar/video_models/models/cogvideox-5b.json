@@ -1,0 +1,221 @@
+{
+  "identity": {
+    "id": "cogvideox-5b",
+    "display_name": "CogVideoX-5B",
+    "family": "cogvideox",
+    "variant": "5B",
+    "status": "disabled",
+    "disabled_reason": "Needs more than 16GB RAM with offload; never produced output."
+  },
+  "capabilities": {
+    "text_to_video": true,
+    "image_to_video": false,
+    "video_to_video": false,
+    "audio_generation": false,
+    "lora": false,
+    "controlnet": false,
+    "max_prompt_tokens": 226
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "THUDM/CogVideoX-5b",
+    "revision": "main",
+    "download_method": "hf_hub",
+    "estimated_download_size_gb": 18,
+    "required_disk_space_gb": 20,
+    "shared_resources": null,
+    "files": {
+      "required": [
+        "model_index.json",
+        "scheduler/scheduler_config.json",
+        "text_encoder/config.json",
+        "text_encoder/model-00001-of-00002.safetensors",
+        "text_encoder/model-00002-of-00002.safetensors",
+        "text_encoder/model.safetensors.index.json",
+        "tokenizer/added_tokens.json",
+        "tokenizer/special_tokens_map.json",
+        "tokenizer/spiece.model",
+        "tokenizer/tokenizer_config.json",
+        "transformer/config.json",
+        "transformer/diffusion_pytorch_model-00001-of-00002.safetensors",
+        "transformer/diffusion_pytorch_model-00002-of-00002.safetensors",
+        "transformer/diffusion_pytorch_model.safetensors.index.json",
+        "vae/config.json",
+        "vae/diffusion_pytorch_model.safetensors"
+      ],
+      "optional": [],
+      "generated": []
+    }
+  },
+  "runtime": {
+    "backend": "diffusers",
+    "pipeline_class": "CogVideoXPipeline",
+    "load_mode": "from_pretrained",
+    "transformer_class": null,
+    "transformer_file": null,
+    "dtype": "bfloat16",
+    "requires_model_index": true,
+    "expected_model_index_class": "CogVideoXPipeline",
+    "min_diffusers_version": "0.30.0",
+    "load_kwargs": {},
+    "alignment_policy": "validate downloaded model_index.json _class_name against runtime.pipeline_class before generation"
+  },
+  "optimization": {
+    "offload_strategy": "auto",
+    "vae_tiling": true,
+    "vae_slicing": true,
+    "attention_slicing": false,
+    "torch_compile": false,
+    "quantization": null,
+    "notes": "Assumed same tiling/slicing API quirk as cogvideox-2b (same pipeline class) — not independently confirmed."
+  },
+  "hardware": {
+    "minimum_vram_gb": 8,
+    "recommended_vram_gb": 16,
+    "recommended_ram_gb": 24,
+    "recommended_gpu": "12GB+ VRAM recommended"
+  },
+  "generation": {
+    "defaults": {
+      "steps": 50,
+      "cfg_scale": 6,
+      "width": 720,
+      "height": 480,
+      "num_frames": 49,
+      "fps": 8
+    },
+    "limits": {
+      "steps": {
+        "default": 50,
+        "min": 20,
+        "max": 60,
+        "step": 5
+      },
+      "cfg_scale": {
+        "default": 6,
+        "min": 3,
+        "max": 8,
+        "step": 0.5
+      },
+      "width": {
+        "default": 720,
+        "min": 480,
+        "max": 720,
+        "step": 16
+      },
+      "height": {
+        "default": 480,
+        "min": 320,
+        "max": 480,
+        "step": 16
+      },
+      "num_frames": {
+        "default": 49,
+        "min": 17,
+        "max": 49,
+        "step": 8
+      },
+      "fps": {
+        "default": 8,
+        "min": 8,
+        "max": 8,
+        "step": 1
+      }
+    }
+  },
+  "ui": {
+    "tier": "pro",
+    "featured": false,
+    "recommended": false,
+    "description": "Higher-fidelity CogVideoX variant. Better prompt adherence than the 2B model at roughly double the VRAM cost.",
+    "pros": [
+      "Better detail and prompt-following than CogVideoX-2B"
+    ],
+    "cons": [
+      "Roughly 2x the VRAM and download size of the 2B variant"
+    ],
+    "tags": [
+      "text-to-video",
+      "high-fidelity"
+    ],
+    "thumbnail": null,
+    "accent_color": "#3b82f6"
+  },
+  "documentation": {
+    "huggingface": "https://huggingface.co/THUDM/CogVideoX-5b",
+    "diffusers_docs": "https://huggingface.co/docs/diffusers/en/api/pipelines/cogvideox",
+    "github": null,
+    "paper": null
+  },
+  "verification": {
+    "status": "unverified",
+    "verified_on": null,
+    "verified_sources": [],
+    "notes": "Generation defaults copied from cogvideox-2b on the assumption they share training recipe conventions — NOT independently confirmed against 5B's own model card. Verify before treating as authoritative."
+  },
+  "scheduler": {
+    "default": "DDIM",
+    "class_name": "DDIMScheduler",
+    "params": {}
+  },
+  "quantization": {
+    "default": "bf16",
+    "supported": [
+      "none",
+      "fp16",
+      "bf16",
+      "fp8",
+      "quanto_int8",
+      "auto"
+    ]
+  },
+  "validation": {
+    "min_frames": 8,
+    "min_width": 256,
+    "min_height": 256,
+    "check_nan": true,
+    "check_black_frames": true,
+    "min_std_dev": 0.005,
+    "max_std_dev": 0.45,
+    "min_fps": 8,
+    "max_fps": 8
+  },
+  "profiles": {
+    "fast": {
+      "label": "Fast",
+      "description": "Quick draft generation",
+      "steps": 30,
+      "cfg_scale": 5,
+      "width": 720,
+      "height": 480,
+      "num_frames": 49,
+      "fps": 8,
+      "scheduler": "DDIM",
+      "quantization": "bf16"
+    },
+    "balanced": {
+      "label": "Balanced",
+      "description": "Cinematic motion & high quality",
+      "steps": 50,
+      "cfg_scale": 6,
+      "width": 720,
+      "height": 480,
+      "num_frames": 49,
+      "fps": 8,
+      "scheduler": "DDIM",
+      "quantization": "bf16"
+    },
+    "detailed": {
+      "label": "Detailed",
+      "description": "Maximum detail & temporal stability",
+      "steps": 75,
+      "cfg_scale": 7,
+      "width": 720,
+      "height": 480,
+      "num_frames": 81,
+      "fps": 8,
+      "scheduler": "DDIM",
+      "quantization": "bf16"
+    }
+  }
+}

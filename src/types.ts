@@ -233,6 +233,22 @@ export interface ModelInfo {
   speedMbps?: number;
   eta_seconds: number;
   etaSeconds?: number;
+  downloadedBytes?: number;
+  totalBytes?: number;
+  downloadError?: string | null;
+  downloadStage?: string | null;
+
+  minimum_ram_gb: number;
+  speed_label: string;
+  recommended: boolean;
+  hidden_controls: string[];
+  license?: string;
+  license_gate?: { name: string; url: string; summary: string[] } | null;
+  /** "video" generates from a prompt; "enhancer" upscales/restores an existing video. */
+  kind: ModelKind;
+  /** Higher is better within a kind; used to pick the best model that fits this PC. */
+  quality_rank: number;
+  enhance_targets: { id: string; label: string; short_edge: number }[];
 }
 
 export interface GenerationParams {
@@ -255,7 +271,8 @@ export type GenerationStatus =
   | "generating"
   | "post_processing"
   | "done"
-  | "error";
+  | "error"
+  | "cancelled";
 
 export interface GenerationJob {
   id: string;
@@ -270,6 +287,91 @@ export interface GenerationJob {
   outputPath?: string;
   thumbnailUrl?: string;
   error?: string;
+  message?: string;
+  elapsedSeconds?: number;
+  kind?: 'generate' | 'enhance' | 'edit' | 'image' | 'voice' | 'motion';
+  /** Set when this job's result was handed to an enhancer. */
+  enhanceJobId?: string;
+  parentId?: string;
+  /** What was actually submitted, e.g. "704×480 · 10.7s". */
+  summary?: string;
+  /** Live worker output, newest last. */
+  logs?: string[];
+  /** Expected total seconds on this PC, from past runs (null until there is history). */
+  estimateSeconds?: number | null;
+}
+
+/** A finished video on disk, as listed by the engine's /outputs endpoint. */
+export interface OutputItem {
+  name: string;
+  path: string;
+  bytes: number;
+  created_at: string;
+  prompt: string;
+  model_id: string;
+  job_id: string;
+  settings: Record<string, any>;
+  elapsed_seconds?: number | null;
+  enhanced_from?: string | null;
+  enhance_target?: string | null;
+  /** Clip info, probed by the engine. */
+  duration?: number;
+  width?: number;
+  height?: number;
+  has_audio?: boolean;
+  /** Set for videos made in the editor. */
+  edit?: { clips: { name: string; start: number; end: number }[]; transition: string } | null;
+}
+
+export interface AudioItem {
+  name: string;
+  bytes: number;
+  title: string;
+  text: string;
+  voice?: string | null;
+  instruct?: string | null;
+  model_id: string;
+  duration?: number | null;
+  created_at: string;
+}
+
+export interface VoiceModelInfo {
+  id: string;
+  name: string;
+  installed: boolean;
+  runner: string;
+  voice_design: boolean;
+  voices: { id: string; name: string; language: string; gender: string }[];
+}
+
+export interface ImageItem {
+  name: string;
+  bytes: number;
+  prompt: string;
+  model_id: string;
+  settings: Record<string, any>;
+  uploaded?: boolean;
+  created_at: string;
+}
+
+export interface StorageReport {
+  models_dir: string;
+  output_dir: string;
+  disk_total_bytes: number;
+  disk_free_bytes: number;
+  models_bytes: number;
+  outputs_bytes: number;
+  models: { id: string; name: string; own_bytes: number; shared: string[]; downloaded: boolean }[];
+  shared: { key: string; dir: string; bytes: number; used_by: string[]; used_by_installed: string[] }[];
+  orphans: { name: string; bytes: number }[];
+}
+
+export interface SystemInfo {
+  gpu_name: string | null;
+  vram_gb: number;
+  driver: string | null;
+  ram_gb: number;
+  disk_free_gb: number;
 }
 
 export interface AppSettings {
@@ -281,11 +383,14 @@ export interface AppSettings {
   watermark: boolean;
 }
 
-export type AppView = "setup" | "main" | "settings" | "models" | "license";
+export type ModelKind = 'video' | 'enhancer' | 'chat' | 'image' | 'voice';
+
+export type AppView = "setup" | "agent" | "main" | "images" | "voices" | "editor" | "settings" | "models" | "license";
 
 export interface SidecarStatus {
   running: boolean;
   port: number;
+  token?: string;
   comfyui_ready: boolean;
   version: string;
   python_version: string;

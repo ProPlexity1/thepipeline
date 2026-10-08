@@ -1,0 +1,76 @@
+{
+  "identity": {
+    "id": "realesrgan-sharpen",
+    "kind": "enhancer",
+    "display_name": "Quick Sharpen",
+    "family": "real-esrgan",
+    "variant": "Real-ESRGAN x4plus",
+    "status": "active"
+  },
+  "capabilities": {
+    "text_to_video": false,
+    "video_to_video": true,
+    "upscale": true,
+    "audio_generation": false
+  },
+  "distribution": {
+    "provider": "huggingface",
+    "repo": "Comfy-Org/Real-ESRGAN_repackaged",
+    "revision": "5fd49b7b278836f48af63ecd314d0f98ab336105",
+    "license": "BSD-3-Clause",
+    "estimated_download_size_gb": 0.07,
+    "required_disk_space_gb": 0.1,
+    "shared_resources": null,
+    "files": {
+      "required": [
+        "RealESRGAN_x4plus.safetensors"
+      ]
+    }
+  },
+  "runtime": {
+    "runner": "esrgan",
+    "weights": "model:realesrgan-sharpen/RealESRGAN_x4plus.safetensors",
+    "requires_model_index": false
+  },
+  "enhance": {
+    "targets": [
+      {
+        "id": "1080p",
+        "label": "1080p",
+        "short_edge": 1080
+      },
+      {
+        "id": "1440p",
+        "label": "1440p",
+        "short_edge": 1440
+      }
+    ],
+    "default_target": "1080p"
+  },
+  "hardware": {
+    "minimum_vram_gb": 4,
+    "recommended_vram_gb": 6,
+    "minimum_ram_gb": 8,
+    "recommended_ram_gb": 16
+  },
+  "ui": {
+    "tier": "enhancer",
+    "recommended": false,
+    "speed_label": "About 2 min per 5s clip",
+    "description": "Classic upscaler: crisper edges at a higher resolution. It sharpens what's there rather than inventing new detail, so textures can look a little smooth.",
+    "pros": [
+      "Quicker than SeedVR2",
+      "Tiny download (67 MB)"
+    ],
+    "cons": [
+      "Can't add new detail",
+      "May shimmer slightly between frames"
+    ],
+    "tags": [
+      "upscale",
+      "sharpen",
+      "video-to-video"
+    ],
+    "accent_color": "#5b8cff"
+  }
+}
