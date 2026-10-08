@@ -65,7 +65,7 @@ def build_graph(rt: dict, prompt: str, width: int, height: int, frames: int, see
         "decode_audio": {"class_type": "VAEDecodeAudio", "inputs": {"samples": [SAMPLER_NODE, 0], "vae": ["audio_vae", 0]}},
         "video": {"class_type": "CreateVideo", "inputs": {"images": ["decode", 0], "audio": ["decode_audio", 0], "fps": 24.0}},
         "save": {"class_type": "SaveVideo", "inputs": {
-            "video": ["video", 0], "filename_prefix": "neuralcut", "format": "mp4", "format.codec": "h264"}},
+            "video": ["video", 0], "filename_prefix": "pipeline_h3", "format": "mp4", "format.codec": "h264"}},
     }
     # Images are cropped to the video's shape so the model sees exactly the frame it must continue.
     for node, name in (("first", first_frame), ("last", last_frame)):

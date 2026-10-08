@@ -13,11 +13,14 @@ smaller files for corrupt downloads.
 import json
 from pathlib import Path
 
-MARKER = ".neuralcut_converted.json"
+MARKER = ".thepipeline_converted.json"
+LEGACY_MARKER = ".neuralcut_converted.json"  # written before the rename
 
 
 def read_marker(resource_dir: Path) -> dict:
     p = resource_dir / MARKER
+    if not p.exists():
+        p = resource_dir / LEGACY_MARKER
     if not p.exists():
         return {}
     try:

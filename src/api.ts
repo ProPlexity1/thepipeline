@@ -24,7 +24,7 @@ export class ApiError extends Error {
 export async function api<T = any>(path: string, init: RequestInit = {}): Promise<T> {
   if (!base) throw new ApiError(0, 'AI engine not started');
   const headers = new Headers(init.headers);
-  headers.set('x-neuralcut-token', token);
+  headers.set('x-pipeline-token', token);
   if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
   const res = await fetch(base + path, { ...init, headers });
   const text = await res.text();

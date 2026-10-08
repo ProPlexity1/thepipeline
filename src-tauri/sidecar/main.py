@@ -50,9 +50,10 @@ WORKER_BUILD = "worker-v7-runners-2026-10-01"  # bump to re-test strategies that
 # The desktop shell generates a random token per launch and hands it to both
 # the sidecar (env) and the UI (Tauri command). Every request must carry it, so
 # web pages open in the user's browser can't drive this local server.
-API_TOKEN = os.environ.get("NEURALCUT_TOKEN") or secrets.token_urlsafe(32)
-if not os.environ.get("NEURALCUT_TOKEN"):
-    print(f"[NeuralCut] Dev mode: no NEURALCUT_TOKEN given, generated one: {API_TOKEN}", flush=True)
+# PIPELINE_TOKEN is the API secret the desktop shell passes in (NEURALCUT_TOKEN: pre-rename name).
+API_TOKEN = os.environ.get("PIPELINE_TOKEN") or os.environ.get("NEURALCUT_TOKEN") or secrets.token_urlsafe(32)
+if not (os.environ.get("PIPELINE_TOKEN") or os.environ.get("NEURALCUT_TOKEN")):
+    print(f"[ThePipeline] Dev mode: no PIPELINE_TOKEN given, generated one: {API_TOKEN}", flush=True)
 
 ALLOWED_ORIGINS = [
     "http://tauri.localhost", "https://tauri.localhost", "tauri://localhost",
@@ -92,7 +93,8 @@ app = FastAPI()
 @app.middleware("http")
 async def require_token(request: Request, call_next):
     if request.method != "OPTIONS" and request.url.path != "/health":
-        token = request.headers.get("x-neuralcut-token") or request.query_params.get("token")
+        token = (request.headers.get("x-pipeline-token") or request.headers.get("x-neuralcut-token")
+                 or request.query_params.get("token"))
         if not _token_ok(token):
             return JSONResponse({"detail": "unauthorized"}, status_code=401)
     return await call_next(request)
@@ -101,7 +103,7 @@ async def require_token(request: Request, call_next):
 # Added last = outermost: answers CORS preflight before the token check.
 app.add_middleware(
     CORSMiddleware, allow_origins=ALLOWED_ORIGINS,
-    allow_methods=["GET", "POST", "DELETE"], allow_headers=["content-type", "x-neuralcut-token"],
+    allow_methods=["GET", "POST", "DELETE"], allow_headers=["content-type", "x-pipeline-token", "x-neuralcut-token"],
 )
 # Blocks DNS-rebinding: a hostile page can't reach us under its own hostname.
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
@@ -299,7 +301,7 @@ def resume_pending_downloads():
         ids = []
     for model_id in ids:
         if model_id in models_db and not models_db[model_id]["downloaded"] and model_id not in active_downloads:
-            print(f"[NeuralCut] Resuming interrupted download: {model_id}", flush=True)
+            print(f"[ThePipeline] Resuming interrupted download: {model_id}", flush=True)
             _begin_download(model_id)
         elif model_id not in models_db or models_db[model_id]["downloaded"]:
             _set_pending(model_id, False)
@@ -317,13 +319,13 @@ def _run_download(model_id: str):
     try:
         dl.run()
         state.update(downloaded=True, downloading=False, progress=100.0, speed_mbps=0.0, eta_seconds=0, error=None)
-        print(f"[NeuralCut] Model {model_id} downloaded and verified", flush=True)
+        print(f"[ThePipeline] Model {model_id} downloaded and verified", flush=True)
     except DownloadCancelled:
         state.update(downloading=False, speed_mbps=0.0, eta_seconds=0, error=None)
-        print(f"[NeuralCut] Download cancelled: {model_id} (partial files kept for resume)", flush=True)
+        print(f"[ThePipeline] Download cancelled: {model_id} (partial files kept for resume)", flush=True)
     except Exception as e:
         state.update(downloading=False, speed_mbps=0.0, eta_seconds=0, error=str(e))
-        print(f"[NeuralCut] Download failed for {model_id}: {e}", flush=True)
+        print(f"[ThePipeline] Download failed for {model_id}: {e}", flush=True)
     finally:
         active_downloads.pop(model_id, None)
         _set_pending(model_id, False)  # finished, paused or failed: only a dead engine leaves it pending
@@ -542,7 +544,7 @@ def reveal_output(name: str):
 @app.post("/folders/{which}/open")
 def open_folder(which: str):
     folders = {"models": MODELS_DIR, "outputs": OUTPUT_DIR}
-    log_dir = os.environ.get("NEURALCUT_LOG_DIR")
+    log_dir = os.environ.get("PIPELINE_LOG_DIR") or os.environ.get("NEURALCUT_LOG_DIR")
     if log_dir:
         folders["logs"] = Path(log_dir)
     if which not in folders:
@@ -601,7 +603,7 @@ class WarmPool:
         try:
             import psutil
             if psutil.virtual_memory().available < 6 * 1024 ** 3:
-                print("[NeuralCut] Low free RAM; not pre-starting a worker", flush=True)
+                print("[ThePipeline] Low free RAM; not pre-starting a worker", flush=True)
                 return
         except Exception:
             pass
@@ -696,10 +698,10 @@ def run_job(job_id: str, model_id: str, params: dict, on_done):
     can't carry over between attempts or jobs. `on_done(output_path, seconds)`
     runs before "done" is announced and may return extra fields for the event."""
     started = time.time()
-    params_file = Path(tempfile.gettempdir()) / f"neuralcut_job_{job_id}.json"
+    params_file = Path(tempfile.gettempdir()) / f"thepipeline_job_{job_id}.json"
     params_file.write_text(json.dumps(params), encoding="utf-8")
     ordered, profile = _order_strategies(model_id)
-    print(f"[NeuralCut] Job {job_id}: strategies {[s['name'] for s in ordered]}", flush=True)
+    print(f"[ThePipeline] Job {job_id}: strategies {[s['name'] for s in ordered]}", flush=True)
     last_error = "No strategies attempted"
     output_path = None
 
@@ -795,7 +797,7 @@ def _notify_production(job_id: str, output_path: Optional[str], error: Optional[
     try:
         production.on_job_finished(job_id, output_path, error)
     except Exception as e:
-        print(f"[NeuralCut] production update failed for {job_id}: {e}", flush=True)
+        print(f"[ThePipeline] production update failed for {job_id}: {e}", flush=True)
 
 
 def run_generation_subprocess(job_id: str, req: GenerateRequest):
@@ -815,7 +817,7 @@ def run_generation_subprocess(job_id: str, req: GenerateRequest):
                                                      target=req.enhance_target or "1080p"), parent=job_id)
                 return {"enhance_job_id": child}
             except HTTPException as e:  # the video itself is fine; just report why it wasn't enhanced
-                print(f"[NeuralCut] Auto-enhance skipped for {job_id}: {e.detail}", flush=True)
+                print(f"[ThePipeline] Auto-enhance skipped for {job_id}: {e.detail}", flush=True)
 
     run_job(job_id, req.model_id, params, on_done)
 
@@ -1579,6 +1581,7 @@ def _status(job_id: str, status: str, pct: float, msg: str = "", **extra):
 def _run_tool_process(job_id: str, args: list[str], env_extra: Optional[dict] = None) -> dict:
     """Run a helper process (voice or motion), relay its log, return its last JSON line."""
     env = dict(os.environ)
+    env.pop("PIPELINE_TOKEN", None)
     env.pop("NEURALCUT_TOKEN", None)
     env.update(env_extra or {})
     proc = subprocess.Popen(args, cwd=str(Path(__file__).parent), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -1937,8 +1940,8 @@ def on_startup():
             loop.default_exception_handler(context)
 
     main_event_loop.set_exception_handler(quiet_resets)
-    print(f"[NeuralCut] Sidecar build: {SIDECAR_BUILD}", flush=True)
-    print(f"[NeuralCut] {len(MODEL_CONFIG)} models | models: {MODELS_DIR} | outputs: {OUTPUT_DIR}", flush=True)
+    print(f"[ThePipeline] Sidecar build: {SIDECAR_BUILD}", flush=True)
+    print(f"[ThePipeline] {len(MODEL_CONFIG)} models | models: {MODELS_DIR} | outputs: {OUTPUT_DIR}", flush=True)
     threading.Thread(target=warm_pool.prewarm, daemon=True).start()
     threading.Thread(target=sweep_engine_work, daemon=True).start()
     threading.Thread(target=lambda: production.resume_all(lambda j: j in job_states), daemon=True).start()

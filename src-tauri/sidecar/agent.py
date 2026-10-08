@@ -1,4 +1,4 @@
-"""The Pipeline's agent: a local chat model that can research, plan and drive
+"""ThePipeline's agent: a local chat model that can research, plan and drive
 the app's generators through tools.
 
 Conversations are saved after every step (power cuts lose at most the reply in
@@ -31,7 +31,7 @@ SETTINGS_PATH = MODELS_DIR.parent / "settings.json"
 MAX_TOOL_ROUNDS = 16
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36"
 
-SYSTEM_PROMPT = """You are the director inside "The Pipeline", a desktop app that makes videos, images and voice-overs entirely on the user's own computer with open AI models.
+SYSTEM_PROMPT = """You are the director inside "ThePipeline", a desktop app that makes videos, images and voice-overs entirely on the user's own computer with open AI models.
 
 Your job: understand what the user wants to make, then plan it and drive the app's tools to make it.
 - Ask a short clarifying question when the request is genuinely ambiguous (audience, length, style); otherwise make sensible choices and say what you chose.

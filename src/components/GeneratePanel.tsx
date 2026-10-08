@@ -87,11 +87,11 @@ export default function GeneratePanel(props: GeneratePanelProps) {
 
   // "Enhance after generating": remembered between sessions.
   const [enhanceChoice, setEnhanceChoice] = useState<string>(() => {
-    try { return localStorage.getItem('neuralcut.enhance') || ''; } catch { return ''; }
+    try { return localStorage.getItem('thepipeline.enhance') || ''; } catch { return ''; }
   });
   const chooseEnhance = (v: string) => {
     setEnhanceChoice(v);
-    try { localStorage.setItem('neuralcut.enhance', v); } catch { /* storage unavailable */ }
+    try { localStorage.setItem('thepipeline.enhance', v); } catch { /* storage unavailable */ }
   };
   const activeEnhance = enhanceOptions.find((o) => o.value === enhanceChoice);
   const [enhanceMenu, setEnhanceMenu] = useState(false);

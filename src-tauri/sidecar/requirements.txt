@@ -1,3 +1,9 @@
+# Main engine environment (src-tauri/sidecar/venv), Python 3.11.
+# Install torch FIRST from the CUDA 12.8 index (needed for RTX 50-series / Blackwell):
+#   pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cu128
+# then: pip install -r requirements.txt
+# scripts/setup.ps1 does all of this.
+
 fastapi
 uvicorn
 websockets
@@ -6,20 +12,31 @@ huggingface_hub
 diffusers>=0.34.0
 transformers>=4.45.0
 accelerate>=0.33.0
+safetensors
 sentencepiece
 protobuf
 imageio
 imageio-ffmpeg
+numpy
+pillow
+opencv-python-headless
+psutil
 
-# MiniMax H3 runs on a private headless ComfyUI (pinned commit, downloaded on demand).
-# Its runtime dependencies, minus the web frontend/template packages it doesn't need:
+# Kokoro voices (CPU)
+kokoro>=0.9.4
+
+# Quantised loading for some diffusers models
+bitsandbytes
+
+# Models that run on a private headless ComfyUI (pinned commit, downloaded on demand):
+# MiniMax H3, HunyuanVideo 1.5, Z-Image, SeedVR2. Its runtime dependencies,
+# minus the web frontend/template packages it doesn't need:
 torchsde
 einops
 aiohttp>=3.11.8
 yarl>=1.18.0
 pyyaml
 scipy
-psutil
 alembic
 SQLAlchemy>=2.0.0
 filelock

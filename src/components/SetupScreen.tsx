@@ -18,7 +18,7 @@ interface SetupScreenProps {
   onComplete: () => void;
 }
 
-const SETUP_DONE_KEY = 'neuralcut.setupDone';
+const SETUP_DONE_KEY = 'thepipeline.setupDone';
 
 function setupDoneBefore() {
   try { return localStorage.getItem(SETUP_DONE_KEY) === '1'; } catch { return false; }
@@ -85,13 +85,11 @@ export default function SetupScreen({
               animate={{ rotate: [0, 5, -5, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-accent-purple to-accent-blue shadow-2xl shadow-accent-purple/30">
-                <Sparkles className="h-12 w-12 text-white" />
-              </div>
+              <img src="/images/logo.png" alt="ThePipeline" className="h-24 w-24 rounded-3xl shadow-2xl shadow-accent-purple/30" />
             </motion.div>
             <div className="text-center">
-              <h1 className="text-4xl font-bold tracking-tight text-text-primary">The Pipeline</h1>
-              <p className="mt-2 text-lg text-text-secondary">Local AI Video Generation</p>
+              <h1 className="text-4xl font-bold tracking-tight text-text-primary">ThePipeline</h1>
+              <p className="mt-2 text-lg text-text-secondary">Your local AI studio: video, images and voice</p>
             </div>
             <div className="flex items-center gap-2 text-text-muted">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -241,7 +239,7 @@ export default function SetupScreen({
               </div>
               <h2 className="text-xl font-semibold text-text-primary mb-2">No NVIDIA GPU Detected</h2>
               <p className="text-text-secondary text-sm mb-6">
-                The Pipeline needs an NVIDIA graphics card with at least 8 GB of video memory.
+                ThePipeline needs an NVIDIA graphics card with at least 8 GB of video memory.
                 If you have one, install or update the NVIDIA driver from nvidia.com, restart, and try again.
               </p>
               <button

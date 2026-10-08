@@ -94,7 +94,7 @@ class LlamaServer:
             args += [str(a) for a in rt.get("extra_args", [])]
             LOG_DIR.mkdir(parents=True, exist_ok=True)
             self._log = open(LOG_DIR / "llama-server.log", "w", encoding="utf-8", errors="replace")
-            env = {k: v for k, v in os.environ.items() if k not in ("NEURALCUT_TOKEN", "HF_TOKEN")}
+            env = {k: v for k, v in os.environ.items() if k not in ("PIPELINE_TOKEN", "NEURALCUT_TOKEN", "HF_TOKEN")}
             self._set_state("loading")
             self.proc = subprocess.Popen(args, cwd=str(engine_dir), stdout=self._log, stderr=subprocess.STDOUT,
                                          stdin=subprocess.DEVNULL, env=env,

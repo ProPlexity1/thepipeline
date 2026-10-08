@@ -62,11 +62,11 @@ interface ExportSettings {
 
 interface Shot { key: string; text: string }
 
-const TIMELINE_KEY = 'neuralcut.timeline';
+const TIMELINE_KEY = 'thepipeline.timeline';
 const LAYERS_KEY = 'pipeline.layers';
 const AUDIO_KEY = 'pipeline.audioTrack';
-const EXPORT_KEY = 'neuralcut.exportSettings';
-const STORY_KEY = 'neuralcut.storyboard';
+const EXPORT_KEY = 'thepipeline.exportSettings';
+const STORY_KEY = 'thepipeline.storyboard';
 const SPEEDS = [0.25, 0.5, 0.75, 1, 1.5, 2, 4];
 
 function load<T>(key: string, fallback: T): T {

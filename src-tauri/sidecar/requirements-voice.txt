@@ -1,0 +1,14 @@
+# Voice environment (src-tauri/sidecar/voice_venv) for Qwen3-TTS.
+# Qwen3-TTS pins transformers 4.57.3, which clashes with the main engine's newer
+# transformers, so it gets its own small venv. It reuses the main venv's torch
+# through a .pth file (scripts/setup.ps1 writes it), so torch isn't downloaded twice.
+#   pip install qwen-tts==0.1.1 --no-deps
+#   pip install -r requirements-voice.txt
+#   pip install torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu128 --no-deps
+transformers==4.57.3
+accelerate==1.12.0
+librosa
+soundfile
+sox
+onnxruntime
+einops

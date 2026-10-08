@@ -103,7 +103,7 @@ def build_graph(rt: dict, src_name: str, multiplier: float, seed: int, with_audi
         "video": {"class_type": "CreateVideo", "inputs": {
             "images": ["post", 0], "fps": ["parts", 2], **({"audio": ["parts", 1]} if with_audio else {})}},
         "save": {"class_type": "SaveVideo", "inputs": {
-            "video": ["video", 0], "filename_prefix": "neuralcut_enhanced", "format": "mp4", "format.codec": "h264"}},
+            "video": ["video", 0], "filename_prefix": "pipeline_enhanced", "format": "mp4", "format.codec": "h264"}},
     }
 
 

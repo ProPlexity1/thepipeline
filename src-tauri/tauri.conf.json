@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "The Pipeline",
+  "productName": "ThePipeline",
   "version": "0.1.0",
-  "identifier": "com.neuralcut.app",
+  "identifier": "com.thepipeline.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "The Pipeline",
+        "title": "ThePipeline",
         "width": 1280,
         "height": 820,
         "resizable": true,

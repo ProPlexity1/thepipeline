@@ -6,7 +6,7 @@ import {
   Mic, Hourglass, CheckCircle2,
 } from 'lucide-react';
 import type { ModelInfo } from '../types';
-import { api, post, del } from '../api';
+import { api, post, del, imageUrl, videoUrl, audioUrl } from '../api';
 import { onAgentEvent } from '../store';
 import { cn } from '../utils/cn';
 import Markdown from './Markdown';
@@ -30,6 +30,7 @@ interface Turn {
 interface ProductionSummary {
   id: string; title: string; status: string; mode: string; shots_total: number; shots_done: number;
   shots_failed: number; final: string | null; error: string | null;
+  shots?: { index: number; title: string; status: string; image: string | null; video: string | null; error: string | null }[];
 }
 
 const ATTACH_NOTE = /\n*\[Attached images saved in the gallery as: [^\]]*\]$/;
@@ -491,10 +492,39 @@ const TOOL_LABEL: Record<string, (a: any) => string> = {
 };
 
 function Notice({ text }: { text: string }) {
+  const video = text.match(/`(video_[\w-]+\.mp4)`/)?.[1];
   return (
     <div className="flex items-start gap-2.5 rounded-xl border border-accent-green/30 bg-accent-green/10 px-3.5 py-2.5 text-sm text-text-primary">
       <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent-green" />
-      <div className="min-w-0 flex-1"><Markdown text={text} /></div>
+      <div className="min-w-0 flex-1 space-y-2">
+        <Markdown text={text} />
+        {video && <Media kind="video" name={video} />}
+      </div>
+    </div>
+  );
+}
+
+/** Shows a generated file as soon as it exists (the job may still be running). */
+function Media({ kind, name, compact }: { kind: 'image' | 'video' | 'audio'; name: string; compact?: boolean }) {
+  const [ready, setReady] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const url = kind === 'image' ? imageUrl(name) : kind === 'video' ? videoUrl(name) : audioUrl(name);
+  const src = attempt ? `${url}&r=${attempt}` : url;
+  // Not there yet: try again every few seconds until the job writes it.
+  const retry = () => { setReady(false); window.setTimeout(() => setAttempt((a) => a + 1), 5000); };
+  const waiting = !ready && (
+    <div className={cn('flex items-center gap-2 rounded-lg border border-dashed border-border-dim px-3 text-xs text-text-muted', compact ? 'h-20 justify-center' : 'py-3')}>
+      <Loader2 className="h-3.5 w-3.5 animate-spin" /> {compact ? '' : kind === 'image' ? 'Making the image…' : kind === 'video' ? 'Making the video…' : 'Recording…'}
+    </div>);
+  return (
+    <div>
+      {waiting}
+      {kind === 'image' && <img key={attempt} src={src} alt="" onLoad={() => setReady(true)} onError={retry}
+        className={cn('rounded-lg border border-border-dim bg-black object-cover', compact ? 'h-20 w-full' : 'max-h-72 w-full object-contain', !ready && 'hidden')} />}
+      {kind === 'video' && <video key={attempt} src={`${src}#t=1`} controls preload="metadata" onLoadedMetadata={() => setReady(true)} onError={retry}
+        className={cn('w-full rounded-lg border border-border-dim bg-black', !ready && 'hidden')} />}
+      {kind === 'audio' && <audio key={attempt} src={src} controls preload="metadata" onLoadedMetadata={() => setReady(true)} onError={retry}
+        className={cn('w-full', !ready && 'hidden')} />}
     </div>
   );
 }
@@ -510,6 +540,18 @@ function ProductionProgress({ p }: { p: ProductionSummary }) {
       <div className="h-1.5 overflow-hidden rounded-full bg-bg-tertiary">
         <motion.div className={cn('h-full rounded-full', p.status === 'failed' ? 'bg-accent-red' : 'bg-accent-purple')} animate={{ width: `${pct}%` }} />
       </div>
+      {p.shots && p.shots.length > 0 && p.status !== 'done' && (
+        <div className="mt-2 grid grid-cols-4 gap-1.5">
+          {p.shots.map((s) => (
+            <div key={s.index} title={s.title} className="relative overflow-hidden rounded-md">
+              {s.image ? <Media kind="image" name={s.image} compact />
+                : <div className="flex h-20 items-center justify-center rounded-md border border-dashed border-border-dim text-[10px] text-text-muted">{s.error ? 'Failed' : `Shot ${s.index}`}</div>}
+              {s.video && <span className="absolute right-1 top-1 rounded bg-black/70 px-1 text-[9px] text-accent-green">moving</span>}
+            </div>
+          ))}
+        </div>
+      )}
+      {p.final && <div className="mt-2"><Media kind="video" name={p.final} /></div>}
     </div>
   );
 }
@@ -542,8 +584,20 @@ function ToolCard({ part, production }: { part: Extract<Part, { type: 'tool' }>;
         )}
       </AnimatePresence>
       {production && <ProductionProgress p={production} />}
+      {!production && part.result && !part.result.error && resultMedia(part) && (
+        <div className="border-t border-border-dim p-2"><Media {...resultMedia(part)!} /></div>
+      )}
     </div>
   );
+}
+
+function resultMedia(part: Extract<Part, { type: 'tool' }>): { kind: 'image' | 'video' | 'audio'; name: string } | null {
+  const r = part.result || {};
+  if (!r.job_id) return null;
+  if (part.name === 'generate_image') return { kind: 'image', name: `image_${r.job_id}.png` };
+  if (part.name === 'generate_video' || part.name === 'animate_image') return { kind: 'video', name: r.video_name_when_done || `video_${r.job_id}.mp4` };
+  if (part.name === 'speak') return { kind: 'audio', name: r.audio_name_when_done || `voice_${r.job_id}.wav` };
+  return null;
 }
 
 function ToolDetails({ part }: { part: Extract<Part, { type: 'tool' }> }) {

@@ -56,7 +56,7 @@ class _FileLock:
         except OSError:
             os.close(self.fd)
             self.fd = None
-            raise RuntimeError("This model is already being downloaded by another NeuralCut process.")
+            raise RuntimeError("This model is already being downloaded by another ThePipeline process.")
         return self
 
     def __exit__(self, *exc):

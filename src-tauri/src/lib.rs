@@ -134,7 +134,7 @@ fn start_sidecar(state: State<SidecarState>, app_handle: tauri::AppHandle) -> Si
         r.join("venv/Scripts/python.exe").exists() && r.join("main.py").exists()
     });
     let Some(root) = found else {
-        return status(&s, false, "NeuralCut's AI engine files are missing. Please reinstall.");
+        return status(&s, false, "ThePipeline's AI engine files are missing. Please reinstall.");
     };
 
     let log_dir = app_handle
@@ -158,9 +158,9 @@ fn start_sidecar(state: State<SidecarState>, app_handle: tauri::AppHandle) -> Si
     cmd.arg(root.join("main.py"))
         .current_dir(root)
         .env("SIDECAR_PORT", s.port.to_string())
-        .env("NEURALCUT_TOKEN", &s.token)
+        .env("PIPELINE_TOKEN", &s.token)
         .env("PYTHONUNBUFFERED", "1")
-        .env("NEURALCUT_LOG_DIR", &log_dir)
+        .env("PIPELINE_LOG_DIR", &log_dir)
         .stdin(Stdio::null());
     if let Ok(log) = log {
         if let Ok(err) = log.try_clone() {

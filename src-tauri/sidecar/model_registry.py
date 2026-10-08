@@ -59,7 +59,12 @@ if _SHARED_DIR.exists():
 # Paths
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 LOCAL_APPDATA = os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
-DEFAULT_MODELS_DIR = Path(LOCAL_APPDATA) / "NeuralCut" / "models"
+# App data lives in %LOCALAPPDATA%\ThePipeline. Installs from before the rename used
+# %LOCALAPPDATA%\NeuralCut; keep using that folder so downloaded models aren't lost.
+APP_DATA_DIR = Path(LOCAL_APPDATA) / "ThePipeline"
+if not APP_DATA_DIR.exists() and (Path(LOCAL_APPDATA) / "NeuralCut").exists():
+    APP_DATA_DIR = Path(LOCAL_APPDATA) / "NeuralCut"
+DEFAULT_MODELS_DIR = APP_DATA_DIR / "models"
 
 if os.environ.get("MODELS_DIR"):
     MODELS_DIR = Path(os.environ["MODELS_DIR"])
@@ -72,7 +77,7 @@ else:
 
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
-DEFAULT_OUTPUT_DIR = Path(LOCAL_APPDATA) / "NeuralCut" / "outputs"
+DEFAULT_OUTPUT_DIR = APP_DATA_DIR / "outputs"
 if os.environ.get("OUTPUT_DIR"):
     OUTPUT_DIR = Path(os.environ["OUTPUT_DIR"])
 elif (PROJECT_ROOT / "outputs").exists():
@@ -362,10 +367,10 @@ def validate_runtime_assets(model_id: str, models_dir: Path = MODELS_DIR) -> tup
 # Per-machine learned config: which strategy actually works for this GPU/OS combo.
 # Never modifies the read-only model JSON — lives in %LOCALAPPDATA%.
 
-RUNTIME_PROFILES_DIR = Path(LOCAL_APPDATA) / "NeuralCut" / "runtime_profiles"
+RUNTIME_PROFILES_DIR = APP_DATA_DIR / "runtime_profiles"
 RUNTIME_PROFILES_DIR.mkdir(parents=True, exist_ok=True)
 
-ERROR_REPORTS_DIR = Path(LOCAL_APPDATA) / "NeuralCut" / "error_reports"
+ERROR_REPORTS_DIR = APP_DATA_DIR / "error_reports"
 ERROR_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 

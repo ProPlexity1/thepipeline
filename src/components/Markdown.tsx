@@ -108,7 +108,7 @@ export default function Markdown({ text }: { text: string }) {
   return <>{blocks}</>;
 }
 
-const TOKEN = /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*\s][^*]*\*|_[^_\s][^_]*_|\[[^\]]+\]\([^)\s]+\)|https?:\/\/[^\s)]+|\n)/g;
+const TOKEN = /(`[^`]+`|\*\*[^*]+\*\*|(?<!\w)__[^_]+__(?!\w)|\*[^*\s][^*]*\*|(?<!\w)_[^_\s][^_]*_(?!\w)|\[[^\]]+\]\([^)\s]+\)|https?:\/\/[^\s)]+|\n)/g;
 
 function inline(text: string): ReactNode {
   const out: ReactNode[] = [];

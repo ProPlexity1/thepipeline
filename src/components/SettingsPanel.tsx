@@ -108,7 +108,7 @@ export default function SettingsPanel({ sidecar, storage, system, gpu, onRestart
         </Section>
 
         <p className="flex items-center gap-1.5 text-xs text-text-muted">
-          <Info className="h-3.5 w-3.5" /> The Pipeline 0.2.0
+          <Info className="h-3.5 w-3.5" /> ThePipeline 0.3.0
         </p>
       </div>
     </div>

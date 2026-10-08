@@ -194,7 +194,7 @@ export function useAppStore() {
             || videoModels.find((m) => m.downloaded)?.id || videoModels[0]?.id || '');
       return merged;
     } catch (err) {
-      console.error('[NeuralCut] fetchModels failed:', err);
+      console.error('[ThePipeline] fetchModels failed:', err);
       return [];
     }
   }, []);
@@ -220,7 +220,7 @@ export function useAppStore() {
     try {
       setOutputs(await api<OutputItem[]>('/outputs'));
     } catch (err) {
-      console.error('[NeuralCut] outputs failed:', err);
+      console.error('[ThePipeline] outputs failed:', err);
     }
   }, []);
 
@@ -228,7 +228,7 @@ export function useAppStore() {
     try {
       setStorage(await api<StorageReport>('/storage'));
     } catch (err) {
-      console.error('[NeuralCut] storage failed:', err);
+      console.error('[ThePipeline] storage failed:', err);
     }
   }, []);
 

@@ -23,7 +23,7 @@ const NAV_ITEMS: { view: AppView; icon: React.ReactNode; label: string }[] = [
   { view: 'settings', icon: <Settings className="h-4 w-4" />, label: 'Settings' },
 ];
 
-const PERF_KEY = 'neuralcut.showPerformance';
+const PERF_KEY = 'thepipeline.showPerformance';
 
 export default function Sidebar({ activeView, onViewChange, gpu, activeJobCount, engineReady }: SidebarProps) {
   const [showPerf, setShowPerf] = useState(() => {

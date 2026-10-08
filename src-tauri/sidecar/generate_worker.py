@@ -435,7 +435,7 @@ def fn_ensure_dependencies(ctx: PipelineContext, config: dict) -> None:
         return
     # Never pip-install from model config at runtime: packages ship with the app's
     # environment (requirements.txt), so a config entry can't pull arbitrary code.
-    raise RuntimeError(f"Missing Python packages for this model: {missing}. Reinstall NeuralCut.")
+    raise RuntimeError(f"Missing Python packages for this model: {missing}. Reinstall ThePipeline.")
 
 
 def fn_load_pipeline(ctx: PipelineContext, config: dict) -> None:

@@ -57,11 +57,11 @@ class ComfyEngine:
     def start(self):
         for d in ("output", "input", "temp", "user", "frontend"):
             (self.work / d).mkdir(parents=True, exist_ok=True)
-        (self.work / "frontend" / "index.html").write_text("NeuralCut engine", encoding="utf-8")
+        (self.work / "frontend" / "index.html").write_text("ThePipeline engine", encoding="utf-8")
         paths_yaml = self.work / "model_paths.yaml"
         root = self.model_root.as_posix()
         paths_yaml.write_text(
-            "neuralcut:\n"
+            "thepipeline:\n"
             f"  base_path: \"{root}\"\n"
             + "".join(f"  {f}: {f}\n" for f in self.folders)
             + "".join(f"extra_{i}:\n  base_path: \"{d.as_posix()}\"\n  {name}: .\n"
@@ -83,6 +83,7 @@ class ComfyEngine:
         self.report.log(f"Starting ComfyUI on 127.0.0.1:{self.port}")
         log = self._log = open(self.log_path, "w", encoding="utf-8", errors="replace")
         env = dict(os.environ)
+        env.pop("PIPELINE_TOKEN", None)
         env.pop("NEURALCUT_TOKEN", None)  # the engine never needs our API secret
         self.proc = subprocess.Popen(
             cmd, cwd=str(self.engine_dir), stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
