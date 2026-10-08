@@ -8,8 +8,8 @@ This file gets you up to speed: what the app does, how it's built, how to set it
 how to add and test models, and what we've already learned the hard way. Read all of it before
 changing anything.
 
-> The repo folder and GitHub repo may still be called `neuralcut`, the project's old name.
-> Everything inside is ThePipeline. Old names still work on purpose (see "Renaming" below).
+> Repo: https://github.com/ProPlexity1/thepipeline (formerly `neuralcut`). Old names still work
+> on purpose inside the code (see "Renaming" below).
 
 ---
 
@@ -248,7 +248,7 @@ The app was called NeuralCut, then "The Pipeline", now **ThePipeline**. Compatib
 ## 8. Working rules
 
 - **Don't delete model files or outputs without asking the user.** Downloads are tens of GB.
-- **Don't commit or push unless asked.** Commit messages are written in plain English.
+- **Every change goes through a pull request; never push to `main`.** The maintainers review PRs and merge them. See section 9.
 - After UI changes, run `npx tsc --noEmit -p .`. After Python changes, restart the engine and exercise the change through the API.
 - **Look at results before calling them good:** extract frames, view images, measure audio. Generated media fails in ways logs don't show.
 - **Long jobs:** queue them, then wait on the output file or `/jobs` instead of sleeping blindly.
@@ -258,3 +258,30 @@ The app was called NeuralCut, then "The Pipeline", now **ThePipeline**. Compatib
   - Manga PDF → animated motion-comic clip: split pages into panels (OpenCV, right-to-left reading order), have the vision LLM read each panel, then photo motion + voices + assembly.
   - Music.
   - Voice cloning.
+
+---
+
+## 9. Sending changes back (pull requests)
+
+If you change anything (code, model JSONs, docs, test notes), send it back as a pull request to
+`ProPlexity1/thepipeline`. The maintainers review it, merge it into `main`, and bring it into their
+own install.
+
+1. Start from the latest `main`: `git checkout main && git pull`.
+2. Make a branch named for the work, e.g. `models/wan22-14b` or `fix/hunyuan-121-frames`.
+3. Commit in small, clear steps. Commit messages are in plain English and say what changed and why.
+4. Push and open the PR:
+   - If you can push to the repo: `git push -u origin <branch>`, then `gh pr create --base main`.
+   - If you can't (the usual case for a tester), fork it first: `gh repo fork --remote`, push the
+     branch to the fork, then `gh pr create --repo ProPlexity1/thepipeline --base main`.
+5. Write the PR description for a reviewer who wasn't there:
+   - what changed and why
+   - the test PC (GPU, VRAM, RAM, driver)
+   - what you ran
+   - results: speed per clip, peak VRAM, and a short quality verdict for each model tested
+   - anything that failed or still needs work
+6. Never push to `main`, force-push over someone else's work, or merge your own PR.
+
+Don't put model weights, venvs, outputs, logs or API keys in a PR (`.gitignore` covers most of these;
+check `git status` before committing). To share sample outputs, describe them in the PR or attach a
+few frames as images.
